@@ -1,0 +1,2 @@
+encoder_model: deepset/roberta-base-squad2
+pad_token_id: 1
