@@ -1,0 +1,45 @@
+{
+	"folders": [
+		{
+			"path": "baseline"
+		}
+	],
+	"settings": {
+		"python.defaultInterpreterPath": "D:/Apps/Anaconda3/envs/nl4opt-ner/python.exe",
+		"python.autoComplete.extraPaths": [
+
+			"D:/Apps/Anaconda3/envs/nl4opt-ner", 
+			"D:/Develop/nl4opt-subtask1-baseline/baseline"
+		],
+		"python.analysis.extraPaths": [
+			"D:/Apps/Anaconda3/envs/nl4opt-ner", 
+			"D:/Develop/nl4opt-subtask1-baseline/baseline"
+		],
+	},
+	"launch": {
+		"version": "0.2.0",
+		"configurations": [
+			{
+				"name": "learn baseline code",
+				"type": "python",
+				"request": "launch",
+				"program": "D:/Develop/nl4opt-subtask1-baseline/baseline/train_model.py",
+				"python": "D:/Apps/Anaconda3/envs/nl4opt-ner/python.exe", 
+				"console": "integratedTerminal",
+				"justMyCode": false, 
+				"args":[
+					"--train", "../data/train/train.txt", 
+					"--dev", "../data/dev/dev.txt", 
+					"--out_dir", "./trained_model", 
+					"--model_name", "xlmr_lr_0.0001", 
+					"--gpus", "1", 
+					"--epochs", "25", 
+					"--encoder_model", "xlm-roberta-base", 
+					"--batch_size", "64", 
+					"--max_length", "100", 
+					"--lr", "0.0001"
+				]
+			}, 
+		]
+	}
+}
