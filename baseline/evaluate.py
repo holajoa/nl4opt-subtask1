@@ -5,6 +5,10 @@ from torch.utils.data import DataLoader
 from utils.utils import parse_args, get_reader, load_model, \
     get_trainer, get_out_filename, write_eval_performance, get_tagset
 
+def write_for_leaderboard(out, out_filename):
+    ''' write the micro averaged F1 score to results.out '''
+    open(out_filename, 'wt').write(str(out[0]["micro@F1"]))
+
 if __name__ == '__main__':
     timestamp = time.time()
     sg = parse_args()
@@ -36,3 +40,6 @@ if __name__ == '__main__':
     # use pytorch lightnings saver here.
     eval_file = get_out_filename(sg.out_dir, model_file, prefix=sg.prefix)
     write_eval_performance(out, eval_file)
+
+    # write the micro averaged F1 score to results.out
+    write_for_leaderboard(out, "results.out")

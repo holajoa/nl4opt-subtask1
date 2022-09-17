@@ -141,7 +141,7 @@ class NERBaseAnnotator(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         output = self.perform_forward_step(batch)
-        self.log_metrics(output['results'], loss=output['loss'], suffix='', on_step=True, on_epoch=False)
+        self.log_metrics(output['results'], loss=output['loss'], suffix='', on_step=True, on_epoch=False)    # logging
         return output
 
     def test_step(self, batch, batch_idx):
@@ -159,30 +159,37 @@ class NERBaseAnnotator(pl.LightningModule):
         tokens, tags, mask, token_mask, metadata = batch
         batch_size = tokens.size(0)
 
-        embedded_text_input = self.encoder(input_ids=tokens, attention_mask=mask)
+        embedded_text_input = self.encoder(input_ids=tokens, attention_mask=mask)  # transformer forward pass output
         embedded_text_input = embedded_text_input.last_hidden_state
-        embedded_text_input = self.dropout(F.leaky_relu(embedded_text_input))
+        embedded_text_input = self.dropout(F.leaky_relu(embedded_text_input))  # passed through a leaky relu activation + dropout
 
         # project the token representation for classification
         token_scores = self.feedforward(embedded_text_input)
-        token_scores = F.log_softmax(token_scores, dim=-1)
+        token_scores = F.log_softmax(token_scores, dim=-1)    # shape = (batch_size, seq_len, num_tags)
 
         # compute the log-likelihood loss and compute the best NER annotation sequence
-        output = self._compute_token_tags(token_scores=token_scores, mask=mask, tags=tags, metadata=metadata, batch_size=batch_size, mode=mode)
+        output = self._compute_token_tags(
+            token_scores=token_scores, 
+            mask=mask,   # attention_mask
+            tags=tags,   # ground truth tags (during training)
+            metadata=metadata,    # contains all the ground truth spans of the batch
+            batch_size=batch_size, 
+            mode=mode, 
+        )
         return output
 
     def _compute_token_tags(self, token_scores, mask, tags, metadata, batch_size, mode=''):
         # compute the log-likelihood loss and compute the best NER annotation sequence
-        loss = -self.crf_layer(token_scores, tags, mask) / float(batch_size)
-        best_path = self.crf_layer.viterbi_tags(token_scores, mask)
+        loss = - self.crf_layer(token_scores, tags, mask) / float(batch_size)    # crf layer loss
+        best_path = self.crf_layer.viterbi_tags(token_scores, mask)    # viterbi decoding output, each element is tuple(best_path, loglik)
 
         pred_results, pred_tags = [], []
         for i in range(batch_size):
-            tag_seq, _ = best_path[i]
-            pred_tags.append([self.id_to_tag[x] for x in tag_seq])
-            pred_results.append(extract_spans([self.id_to_tag[x] for x in tag_seq if x in self.id_to_tag]))
+            tag_seq, _ = best_path[i]    # get the best path
+            pred_tags.append([self.id_to_tag[x] for x in tag_seq])    # convert to string tags (BIO) and append
+            pred_results.append(extract_spans([self.id_to_tag[x] for x in tag_seq if x in self.id_to_tag]))    # extract the spans and append
 
-        self.span_f1(pred_results, metadata)
+        self.span_f1(pred_results, metadata)    # used to calculate metrics
         output = {"loss": loss, "results": self.span_f1.get_metric()}
 
         if mode == 'predict':
