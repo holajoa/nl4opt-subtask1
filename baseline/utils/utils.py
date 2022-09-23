@@ -51,9 +51,11 @@ def get_tagset(tagging_scheme):
         raise Exception("ERROR: Only conll tagging scheme is accepted")
 
 
-def get_out_filename(out_dir, model, prefix):
+def get_out_filename(out_dir, model, prefix, output_tags=False):
     model_name = os.path.basename(model)
     model_name = model_name[:model_name.rfind('.')]
+    if output_tags:
+        return '{}/{}_base_{}_full_output.tsv'.format(out_dir, prefix, model_name)
     return '{}/{}_base_{}.tsv'.format(out_dir, prefix, model_name)
 
 
