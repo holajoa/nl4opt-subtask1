@@ -36,14 +36,14 @@ if __name__ == '__main__':
     )
     index = 0
     for batch in tqdm(test_dataloaders, total=len(test_dataloaders)):
-        pred_tags, tags = model.predict_tags(batch, device=sg.cuda, return_ground_truth_tags=True)
-
-        for pred_tag_inst, true_tag_inst in zip(pred_tags, tags):
-            pred_true_pairs = zip(pred_tag_inst, true_tag_inst)
-            tag_inst = ['\t'.join(pair) for pair in pred_true_pairs]
+        token_ids, pred_tags, tags = model.predict_tags(batch, device=sg.cuda, return_tokens_and_true_tags=True)
+        # tokens = [test_data.tokenizer.convert_ids_to_tokens(token_ids_sen, skip_special_tokens=True) for token_ids_sen in token_ids]
+        for token_inst, pred_tag_inst, true_tag_inst in zip(test_data.sentences, pred_tags, tags):
+            triples = zip(token_inst, pred_tag_inst, true_tag_inst)
+            tag_inst = ['\t'.join(tri) for tri in triples]
             out_str += '\n'.join(tag_inst)
             out_str += '\n\t\n\t\n'
         index += 1
 
-    open(eval_file, 'wt').write(out_str)
+    open(eval_file, 'wt', encoding='utf-8').write(out_str)
 

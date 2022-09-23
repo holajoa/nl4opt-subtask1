@@ -25,6 +25,7 @@ class CoNLLReader(Dataset):
 
         self.label_to_id = {} if target_vocab is None else target_vocab
         self.instances = []    # each element will contain five objects: subtoken_ids, masks, subtoken_masks, spans:Dict, tag_ids
+        self.sentences = []
 
     def get_target_size(self):
         return len(set(self.label_to_id.values()))
@@ -55,7 +56,7 @@ class CoNLLReader(Dataset):
             if self._max_instances != -1 and instance_idx > self._max_instances:  # Only get the first self._max_instances examples
                 break
             sentence_str, tokens_sub_rep, token_masks_rep, coded_ner_, gold_spans_, mask = self.parse_line_for_ner(fields=fields)
-
+            
             tokens_tensor = torch.tensor(tokens_sub_rep, dtype=torch.long)    # convert subtoken ids to torch long tensor
             tag_tensor = torch.tensor(coded_ner_, dtype=torch.long).unsqueeze(0)    # convert subtoken tag ids to torch long tensor - reshape into column vector
             token_masks_rep = torch.tensor(token_masks_rep)    # convert subtoken masks to torch long tensor (True if subtoken is the start of word)
@@ -83,6 +84,7 @@ class CoNLLReader(Dataset):
         :return:mask: List of bools, whether current position is a token (not a special token)
         """
         tokens_, ner_tags = fields[0], fields[-1]   # extract the words and tags (two discarded lists are underscores)
+        self.sentences.append(tokens_)
         sentence_str, tokens_sub_rep, ner_tags_rep, token_masks_rep, mask = self.parse_tokens_for_ner(tokens_, ner_tags)
         gold_spans_ = extract_spans(ner_tags_rep)    # Extract spans from the tags
         # Convert the list of tags to list of tag ids: coded_ner_

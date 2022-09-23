@@ -1,9 +1,9 @@
-python predict_tags.py 
+CUDA_LAUNCH_BLOCKING=1 python error_analysis.py \
     --test ../data/dev/dev.txt \
     --out_dir ./trained_model \
-    --model_name roberta_squad2_final_dbg \
+    --model_name roberta_squad2_final \
     --gpus 1 \
     --encoder_model deepset/roberta-base-squad2 \
-    --batch_size 32 \
+    --batch_size 16 \
     --model ./trained_model/roberta_squad2_lr_2e-5/lightning_logs/version_0 \
-    --max_length 128
+    --max_length 200
