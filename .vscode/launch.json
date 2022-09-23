@@ -9,7 +9,7 @@
             "type": "python",
             "request": "launch",
             "program": "D:/Develop/nl4opt-subtask1/baseline/evaluate.py",
-            "python": "D:/Apps/Anaconda3/envs/nl4opt-ner/python.exe", 
+            "python": "D:/Apps/Anaconda3/envs/nl4opt-holajoa/python.exe", 
             "console": "integratedTerminal",
             "justMyCode": true, 
             "cwd": "D:/Develop/nl4opt-subtask1/baseline", 

@@ -1,0 +1,38 @@
+  # Enter subtask folder if exists
+  if [ -d subtask1 ]; then
+    cd subtask1
+    echo subtask1
+
+    # Check number of sub-folders (submissions)
+    N_DIR=`ls -d */ | wc -w`
+    echo $N_DIR
+    if [ $N_DIR -le 3 ]; then
+
+      for d in */ ; do
+        cd $d
+
+        SUBMISSION_FOLDER_ID=`gdrive list --query "name contains '$d' and '$TASK_FOLDER_ID' in parents" -m 1 | sed -n '2 p' | cut -d " " -f1`
+
+        # Check if `evaluate.sh` exists
+        if [ -f "evaluate.sh" ]; then
+          chmod u+x evaluate.sh
+
+          # Copy test data into the submission sub-folder
+          cp ~/test.txt ./
+
+          # Your script should set up necessary environment, evaluate the model on `./test.txt`,
+          # and output the micro-averaged F1 score to a text file named `results.out`
+          ./evaluate.sh &> evaluation.out
+          
+          # File `results.out` should have a single line with the micro F1 score (e.g. "0.839")
+          cat results.out
+        fi
+
+        cd ../
+
+      done
+    fi
+
+    cd ../
+
+  fi
