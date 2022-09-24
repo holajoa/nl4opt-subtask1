@@ -64,6 +64,7 @@ class CoNLLReader(Dataset):
 
             self.instances.append((tokens_tensor, mask_rep, token_masks_rep, gold_spans_, tag_tensor))
             instance_idx += 1
+            
         logger.info('Finished reading {:d} instances from file {}'.format(len(self.instances), dataset_name))
 
     def parse_line_for_ner(self, fields:List[List[str]]) -> Tuple[str, List[int], List[bool], Dict[tuple, str]]:
@@ -84,11 +85,15 @@ class CoNLLReader(Dataset):
         :return:mask: List of bools, whether current position is a token (not a special token)
         """
         tokens_, ner_tags = fields[0], fields[-1]   # extract the words and tags (two discarded lists are underscores)
-        self.sentences.append(tokens_)
+        
         sentence_str, tokens_sub_rep, ner_tags_rep, token_masks_rep, mask = self.parse_tokens_for_ner(tokens_, ner_tags)
         gold_spans_ = extract_spans(ner_tags_rep)    # Extract spans from the tags
         # Convert the list of tags to list of tag ids: coded_ner_
         coded_ner_ = [self.label_to_id[tag] if tag in self.label_to_id else self.label_to_id['O'] for tag in ner_tags_rep]    # unrecoded tags are treated as O tag
+        
+        if tokens_ not in self.sentences:
+            self.sentences.append(tokens_)
+            
         return sentence_str, tokens_sub_rep, token_masks_rep, coded_ner_, gold_spans_, mask
 
     def parse_tokens_for_ner(self, tokens_:List[str], ner_tags:List[str]):

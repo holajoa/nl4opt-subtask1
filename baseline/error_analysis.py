@@ -3,6 +3,8 @@ import time
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+from cardinality import count
+
 from utils.utils import parse_args, get_reader, load_model, get_out_filename, get_tagset, get_trainer
 
 if __name__ == '__main__':
@@ -37,13 +39,24 @@ if __name__ == '__main__':
     index = 0
     for batch in tqdm(test_dataloaders, total=len(test_dataloaders)):
         token_ids, pred_tags, tags = model.predict_tags(batch, device=sg.cuda, return_tokens_and_true_tags=True)
-        # tokens = [test_data.tokenizer.convert_ids_to_tokens(token_ids_sen, skip_special_tokens=True) for token_ids_sen in token_ids]
-        for token_inst, pred_tag_inst, true_tag_inst in zip(test_data.sentences, pred_tags, tags):
+        sentences = test_data.sentences[index*sg.batch_size:min(index*sg.batch_size+sg.batch_size-1, len(test_data.sentences))]
+        for token_inst, pred_tag_inst, true_tag_inst in zip(sentences, pred_tags, tags):
+            pred_tag_inst = list(pred_tag_inst)
+            true_tag_inst = list(true_tag_inst)
+            try:
+                assert len(token_inst) == len(pred_tag_inst), \
+                    f'Index={index}: Bad sentence {token_inst}: \n' \
+                    f'Token length is {len(token_inst)} but tag length is {len(pred_tag_inst)}.'
+            except AssertionError:
+                token_inst = token_inst[:len(pred_tag_inst)]
+                print('Sentence is truncated due to model input length capacity. You should verify that tokens and tags are matching. ')
+                
             triples = zip(token_inst, pred_tag_inst, true_tag_inst)
             tag_inst = ['\t'.join(tri) for tri in triples]
             out_str += '\n'.join(tag_inst)
-            out_str += '\n\t\n\t\n'
+            out_str += '\n\t\t\n\t\t\n'
         index += 1
 
+    # written order is token - pred_tag - true_tag
     open(eval_file, 'wt', encoding='utf-8').write(out_str)
 
