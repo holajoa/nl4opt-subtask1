@@ -11,8 +11,20 @@ if __name__ == '__main__':
     out_dir_path = sg.out_dir + '/' + sg.model_name
 
     # load the datasets
-    train_data = get_reader(file_path=sg.train, target_vocab=get_tagset(sg.iob_tagging), encoder_model=sg.encoder_model, max_instances=sg.max_instances, max_length=sg.max_length)
-    dev_data = get_reader(file_path=sg.dev, target_vocab=get_tagset(sg.iob_tagging), encoder_model=sg.encoder_model, max_instances=sg.max_instances, max_length=sg.max_length)
+    train_data = get_reader(
+        file_path=sg.train, 
+        target_vocab=get_tagset(sg.iob_tagging), 
+        encoder_model=sg.encoder_model, 
+        max_instances=sg.max_instances, 
+        max_length=sg.max_length, 
+    )
+    dev_data = get_reader(
+        file_path=sg.dev, 
+        target_vocab=get_tagset(sg.iob_tagging), 
+        encoder_model=sg.encoder_model, 
+        max_instances=sg.max_instances, 
+        max_length=sg.max_length, 
+    )
 
     model = create_model(train_data=train_data, dev_data=dev_data, tag_to_id=train_data.get_target_vocab(),
                          dropout_rate=sg.dropout, batch_size=sg.batch_size, stage=sg.stage, lr=sg.lr,

@@ -172,7 +172,7 @@ def get_model_earlystopping_callback():
     es_clb = EarlyStopping(
         monitor='val_loss',
         min_delta=0.001,
-        patience=8,
+        patience=4,
         verbose=True,
         mode='min'
     )

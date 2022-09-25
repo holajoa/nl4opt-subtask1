@@ -99,7 +99,11 @@ class NERBaseAnnotator(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr, weight_decay=0.01)
         if self.stage == 'fit':
-            scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=self.warmup_steps, num_training_steps=self.total_steps)
+            scheduler = get_linear_schedule_with_warmup(
+                optimizer, 
+                num_warmup_steps=self.warmup_steps, 
+                num_training_steps=self.total_steps, 
+            )
             scheduler = {
                 'scheduler': scheduler,
                 'interval': 'step',
@@ -146,8 +150,8 @@ class NERBaseAnnotator(pl.LightningModule):
         if fgm:
             embeddings = self.encoder.embeddings.word_embeddings.weight
             output = self.perform_forward_step(batch, mode='train')
-            loss = output['loss']
-            loss.backward(inputs=embeddings)
+            loss_ = output['loss']
+            loss_.backward(inputs=embeddings)
             grads = self.encoder.embeddings.word_embeddings.weight.grad
             # Add perturbations (Fast Gradient Method/FGM)
             delta = self.epsilon * grads / (torch.sqrt((grads**2).sum()) + 1e-8)
