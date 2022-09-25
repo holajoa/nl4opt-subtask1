@@ -26,6 +26,7 @@ class NERBaseAnnotator(pl.LightningModule):
         lr=1e-5,
         dropout_rate=0.1,
         batch_size=16,
+        epsilon=0., 
         tag_to_id=None,
         stage='fit',
         pad_token_id=1,
@@ -59,6 +60,7 @@ class NERBaseAnnotator(pl.LightningModule):
 
         self.lr = lr
         self.dropout = nn.Dropout(dropout_rate)
+        self.epsilon = epsilon
 
         # SpanF1 is required to evaluate the model - don't remove
         self.span_f1 = SpanF1()
@@ -140,6 +142,17 @@ class NERBaseAnnotator(pl.LightningModule):
         return output
 
     def training_step(self, batch, batch_idx):
+        fgm = self.epsilon > 0
+        if fgm:
+            embeddings = self.encoder.embeddings.word_embeddings.weight
+            output = self.perform_forward_step(batch, mode='train')
+            loss = output['loss']
+            loss.backward(inputs=embeddings)
+            grads = self.encoder.embeddings.word_embeddings.weight.grad
+            # Add perturbations (Fast Gradient Method/FGM)
+            delta = self.epsilon * grads / (torch.sqrt((grads**2).sum()) + 1e-8)
+            with torch.no_grad():
+                self.encoder.embeddings.word_embeddings.weight += delta.cuda()
         output = self.perform_forward_step(batch)
         self.log_metrics(output['results'], loss=output['loss'], suffix='', on_step=True, on_epoch=False)    # logging
         return output

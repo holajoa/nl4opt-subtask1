@@ -39,6 +39,7 @@ def parse_args():
     p.add_argument('--epochs', type=int, help='Number of epochs for training.', default=5)
     p.add_argument('--lr', type=float, help='Learning rate', default=1e-5)
     p.add_argument('--dropout', type=float, help='Dropout rate', default=0.1)
+    p.add_argument('--epsilon', type=float, help='Adversarial training perturbation hyperparameter', default=0.)
 
     return p.parse_args()
 
@@ -84,9 +85,9 @@ def get_reader(file_path, max_instances=-1, max_length=50, target_vocab=None, en
     return reader
 
 
-def create_model(train_data, dev_data, tag_to_id, batch_size=64, dropout_rate=0.1, stage='fit', lr=1e-5, encoder_model='xlm-roberta-large', num_gpus=1):
+def create_model(train_data, dev_data, tag_to_id, batch_size=64, dropout_rate=0.1, epsilon=0., stage='fit', lr=1e-5, encoder_model='xlm-roberta-large', num_gpus=1):
     return NERBaseAnnotator(train_data=train_data, dev_data=dev_data, tag_to_id=tag_to_id, batch_size=batch_size, stage=stage, encoder_model=encoder_model,
-                            dropout_rate=dropout_rate, lr=lr, pad_token_id=train_data.pad_token_id, num_gpus=num_gpus)
+                            dropout_rate=dropout_rate, lr=lr, epsilon=epsilon, pad_token_id=train_data.pad_token_id, num_gpus=num_gpus)
 
 
 def load_model(model_file, tag_to_id=None, stage='test'):
@@ -141,8 +142,20 @@ def get_trainer(gpus=4, is_test=False, out_dir=None, epochs=10, model_name='', t
         return pl.Trainer(gpus=1, logger=logger) if torch.cuda.is_available() else pl.Trainer(val_check_interval=100)
 
     if torch.cuda.is_available():
-        trainer = pl.Trainer(gpus=gpus, logger=logger, deterministic=True, max_epochs=epochs, callbacks=[get_model_earlystopping_callback(),get_modelcheckpoint_callback(out_dir, model_name, timestamp)],
-                             default_root_dir=out_dir, distributed_backend='ddp', checkpoint_callback=True, accumulate_grad_batches=grad_accum)
+        trainer = pl.Trainer(
+            gpus=gpus, 
+            logger=logger, 
+            deterministic=True, 
+            max_epochs=epochs, 
+            callbacks=[
+                get_model_earlystopping_callback(), 
+                get_modelcheckpoint_callback(out_dir, model_name, timestamp), 
+            ],
+            default_root_dir=out_dir, 
+            distributed_backend='ddp', 
+            checkpoint_callback=True, 
+            accumulate_grad_batches=grad_accum, 
+        )
         trainer.callbacks.append(get_lr_logger())
     else:
         trainer = pl.Trainer(max_epochs=epochs, logger=logger, default_root_dir=out_dir)

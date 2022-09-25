@@ -1,17 +1,54 @@
-from transformers import Trainer
-from transformers.utils import logging
+import torch
+
+import pytorch_lightning as pl
+
+from log import logger
+from model.ner_model import NERBaseAnnotator
+from utils.reader import CoNLLReader
+
+class AdversarialTrainer(pl.Trainer):
+    def training_step(self, model, inputs):
+        model.train()
+        
+        # Extract embeddings
+        # shape=(vocab_size, hidden_size)
+        embeddings = model.base_model.embeddings.word_embeddings.weight
+
+        # get gradients from embedding layer
+        inputs = self._prepare_inputs(inputs)
+        loss = self.compute_loss(model, inputs)
+        loss.backward(inputs=embeddings)
+        grads = model.base_model.embeddings.word_embeddings.weight.grad.cpu()
+
+        # Add perturbations (Fast Gradient Method/FGM)
+        delta = self.args.epsilon * grads / (np.sqrt((grads**2).sum()) + 1e-8)
+        with torch.no_grad():
+            model.base_model.embeddings.word_embeddings.weight += delta.cuda()
+
+        # Compute loss and backprop as usual
+        loss = self.compute_loss(model, inputs)
 
 
-class MyTrainer(Trainer):
-    def log(self, logs):
-        """Overwrite original log method to log to external file."""
-        if self.state.epoch is not None:
-            logs["epoch"] = round(self.state.epoch, 2)
-
-        output = {**logs, **{"step": self.state.global_step}}
-        self.state.log_history.append(output)
-        self.control = self.callback_handler.on_log(self.args, self.state, self.control, logs)
-
-        # log to external file
-        logging.info(output)
+        ## ============= Copied from huggingface source code =============
+        if self.args.n_gpu > 1:
+            loss = loss.mean()  # mean() to average on multi-gpu parallel training
     
+        if self.args.gradient_accumulation_steps > 1 and not self.deepspeed:
+            # deepspeed handles loss scaling by gradient_accumulation_steps in its `backward`
+            loss = loss / self.args.gradient_accumulation_steps
+
+        if self.do_grad_scaling:
+            self.scaler.scale(loss).backward()
+        elif self.deepspeed:
+            # loss gets scaled under gradient_accumulation_steps in deepspeed
+            loss = self.deepspeed.backward(loss)
+        else:
+            loss.backward()
+        ## ============= Copied from huggingface source code =============
+
+
+        # Remove the perturbations
+        with torch.no_grad():
+            model.base_model.embeddings.word_embeddings.weight -= delta.cuda()
+
+        return loss.detach()

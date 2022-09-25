@@ -16,7 +16,7 @@ if __name__ == '__main__':
 
     model = create_model(train_data=train_data, dev_data=dev_data, tag_to_id=train_data.get_target_vocab(),
                          dropout_rate=sg.dropout, batch_size=sg.batch_size, stage=sg.stage, lr=sg.lr,
-                         encoder_model=sg.encoder_model, num_gpus=sg.gpus)
+                         epsilon=sg.epsilon, encoder_model=sg.encoder_model, num_gpus=sg.gpus)
 
     trainer = train_model(model=model, out_dir=out_dir_path, epochs=sg.epochs, model_name=sg.model_name, timestamp=timestamp, grad_accum=sg.accum_grad_batches)
  
