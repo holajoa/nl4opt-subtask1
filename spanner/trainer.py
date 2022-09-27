@@ -213,22 +213,19 @@ class BertNerTagger(pl.LightningModule):
         span_label_ltoken1 = span_label_ltoken.view(-1)
         loss = self.cross_entropy(all_span_rep1, span_label_ltoken1)
         loss = loss.view(batch_size, n_span)
-        # print('loss 1: ', loss)
-        if mode=='train' and self.args.use_span_weight: # when training we should multiply the span-weight
+
+        if mode == 'train' and self.args.use_span_weight: # when training we should multiply the span-weight
             span_weight = loadall[6]
             loss = loss*span_weight
-            # print('loss 2: ', loss)
 
         loss = torch.masked_select(loss, real_span_mask_ltoken.bool())
-
-        # print("1 loss: ", loss)
         loss= torch.mean(loss)
-        # print("loss: ", loss)
+
         predict = self.classifier(all_span_rep) # shape: (bs, n_span, n_class)
 
         return loss
 
-    def perform_forward_step(self, batch, mode='train'):
+    def perform_forward_step(self, batch, mode=''):
         tokens, token_type_ids, all_span_idxs_ltoken, morph_idxs, span_label_ltoken, all_span_lens, all_span_weights, real_span_mask_ltoken, words, all_span_word, all_span_idxs = batch
         loadall = [tokens, token_type_ids, all_span_idxs_ltoken, morph_idxs, span_label_ltoken, all_span_lens, all_span_weights, real_span_mask_ltoken, words, all_span_word, all_span_idxs]
         
@@ -257,21 +254,27 @@ class BertNerTagger(pl.LightningModule):
             output[f"val_loss"] = loss
             output["predicts"] = predicts
             output['all_span_word'] = all_span_word
-
+        else:
+            raise NotImplementedError(f"`mode` must be chosen from ['train', 'test/dev']. ")
         return output
 
     def training_step(self, batch, batch_idx):
         """"""
         fgm = self.args.epsilon > 0
-        tf_board_logs = {
-            "lr": self.trainer.optimizers[0].param_groups[0]['lr']
-        }
+        tf_board_logs = {"lr": self.trainer.optimizers[0].param_groups[0]['lr']}
         
         if fgm:
             embeddings = self.model.bert.embeddings.word_embeddings.weight
-
+            output = self.perform_forward_step(batch, mode='train')
+            loss_ = output['loss']
+            loss_.backward(inputs=embeddings)
+            grads = self.model.bert.embeddings.word_embeddings.weight.grad
+            # Add perturbations (Fast Gradient Method/FGM)
+            delta = self.args.epsilon * grads / (torch.sqrt((grads**2).sum()) + 1e-8)
+            with torch.no_grad():
+                self.model.bert.embeddings.word_embeddings.weight += delta.cuda()
+        
         output = self.perform_forward_step(batch, mode='train')
-
         tf_board_logs[f"loss"] = output['loss']
         output['log'] = tf_board_logs
 

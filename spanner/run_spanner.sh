@@ -15,6 +15,7 @@ MODEL_DROPOUT=0.1
 LR=1e-4
 MAXLEN=200
 MAXNORM=1.0
+ADVERSARIAL_PARAM=1e-4
 batchSize=16
 max_spanLen=6
 tokenLen_emb_dim=50
@@ -49,6 +50,7 @@ CUDA_LAUNCH_BLOCKING=1 python train_model.py \
 --precision=16 \
 --progress_bar_refresh_rate 1 \
 --lr $LR \
+--epsilon $ADVERSARIAL_PARAM \
 --distributed_backend=ddp \
 --val_check_interval 0.5 \
 --accumulate_grad_batches 1 \
