@@ -3,28 +3,26 @@
 
 import torch
 import torch.nn as nn
-from transformers import BertModel, BertPreTrainedModel,RobertaModel
+from transformers import BertModel, BertPreTrainedModel, RobertaModel, AutoModel
 
 from models.classifier import MultiNonLinearClassifier, SingleLinearClassifier
 from allennlp.modules.span_extractors import EndpointSpanExtractor
 from torch.nn import functional as F
 
 class BertNER(BertPreTrainedModel):
-    def __init__(self, config,args):
+    def __init__(self, config, args):
         super(BertNER, self).__init__(config)
-        self.bert = BertModel(config)
         self.args = args
+        
         if 'roberta' in self.args.bert_config_dir:
             self.bert = RobertaModel(config)
             print('use the roberta pre-trained model...')
+        else:
+            self.bert = BertModel(config)
+        
 
-
-        # self.start_outputs = nn.Linear(config.hidden_size, 2)
-        # self.end_outputs = nn.Linear(config.hidden_size, 2)
         self.start_outputs = nn.Linear(config.hidden_size, 1)
         self.end_outputs = nn.Linear(config.hidden_size, 1)
-
-        # self.span_embedding = SingleLinearClassifier(config.hidden_size * 2, 1)
 
         self.hidden_size = config.hidden_size
 
@@ -33,24 +31,18 @@ class BertNER(BertPreTrainedModel):
         self.n_class = args.n_class
         self.tokenLen_emb_dim = self.args.tokenLen_emb_dim # must set, when set a value to the max_span_width.
 
-        # if self.args.use_tokenLen:
-        #     self.tokenLen_emb_dim = self.args.tokenLen_emb_dim
-        # else:
-        #     self.tokenLen_emb_dim = None
-
-
-
-
         print("self.max_span_width: ", self.max_span_width)
         print("self.tokenLen_emb_dim: ", self.tokenLen_emb_dim)
 
         #  bucket_widths: Whether to bucket the span widths into log-space buckets. If `False`, the raw span widths are used.
 
-        self._endpoint_span_extractor = EndpointSpanExtractor(config.hidden_size,
-                                                              combination=self.span_combination_mode,
-                                                              num_width_embeddings=self.max_span_width,
-                                                              span_width_embedding_dim=self.tokenLen_emb_dim,
-                                                              bucket_widths=True)
+        self._endpoint_span_extractor = EndpointSpanExtractor(
+            config.hidden_size,
+            combination=self.span_combination_mode,
+            num_width_embeddings=self.max_span_width,
+            span_width_embedding_dim=self.tokenLen_emb_dim,
+            bucket_widths=True, 
+        )
 
 
         self.linear = nn.Linear(10, 1)
@@ -68,8 +60,10 @@ class BertNER(BertPreTrainedModel):
             input_dim = config.hidden_size * 2 + self.tokenLen_emb_dim + self.spanLen_emb_dim + self.morph_emb_dim
 
 
-        self.span_embedding = MultiNonLinearClassifier(input_dim, self.n_class,
-                                                       config.model_dropout)
+        self.span_embedding = MultiNonLinearClassifier(
+            input_dim, self.n_class,
+            config.model_dropout, 
+        )
 
         self.spanLen_embedding = nn.Embedding(args.max_spanLen+1, self.spanLen_emb_dim, padding_idx=0)
 

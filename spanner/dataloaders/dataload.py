@@ -3,8 +3,8 @@
 
 import json
 import torch
-from tokenizers import BertWordPieceTokenizer,ByteLevelBPETokenizer
-from tokenizers.processors import TemplateProcessing,BertProcessing
+from tokenizers import BertWordPieceTokenizer, ByteLevelBPETokenizer
+from tokenizers.processors import TemplateProcessing, BertProcessing
 from torch.utils.data import Dataset
 from allennlp.data.dataset_readers.dataset_utils import enumerate_spans
 
@@ -20,7 +20,7 @@ class BERTNERDataset(Dataset):
 
 	"""
 
-	def __init__(self, args, json_path, tokenizer: BertWordPieceTokenizer, max_length: int = 128, possible_only=False,
+	def __init__(self, args, json_path, tokenizer, max_length: int = 128, possible_only=False,
 				 pad_to_maxlen=False):
 		self.all_data = json.load(open(json_path, encoding='ISO-8859-1'))
 		self.tokenizer = tokenizer
@@ -123,9 +123,7 @@ class BERTNERDataset(Dataset):
 			slen = eid - sid + 1
 			all_span_lens.append(slen)
 
-
 		morph_idxs = self.case_feature_tokenLevel(morph2idx, all_span_idxs, words,self.args.max_spanLen)
-
 
 		context_tokens = tokenizer.encode(context, add_special_tokens=True)
 		

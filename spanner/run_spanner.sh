@@ -4,19 +4,19 @@ DATA_DIR="./data/nl4opt/"    # "data/conll03"
 PRETRAINED="bert-base-uncased"
 BERT_DIR=${PRETRAINED}
 
-mkdir -p vocab
+mkdir -p vocab/${PRETRAINED}
 wget -nc https://huggingface.co/${PRETRAINED}/raw/main/vocab.txt 
-mv vocab.txt vocab/${PRETRAINED}_vocab.txt
+mv vocab.txt vocab/${PRETRAINED}/
 
 dataname=nl4opt-task1
 n_class=7
 BERT_DROPOUT=0.1
 MODEL_DROPOUT=0.1
-LR=1e-5
+LR=1e-4
 MAXLEN=200
 MAXNORM=1.0
 batchSize=16
-max_spanLen=4
+max_spanLen=6
 tokenLen_emb_dim=50
 spanLen_emb_dim=100
 morph_emb_dim=100
@@ -39,8 +39,7 @@ param_name=epoch${max_epochs}_batchsize${batchSize}_lr${LR}_maxlen${MAXLEN}
 OUTPUT_DIR="./trained_model/${modelName}"
 #mkdir -p $OUTPUT_DIR
 
-# nohup python trainer.py \
-CUDA_LAUNCH_BLOCKING=1 python trainer.py \
+CUDA_LAUNCH_BLOCKING=1 python train_model.py \
 --dataname $dataname \
 --data_dir $DATA_DIR \
 --bert_config_dir $BERT_DIR \

@@ -100,6 +100,47 @@
                     "--gradient_clip_val", "1.0", 
                     "--optimizer", "adamw"
 				]
+			}, 
+			{
+				"name": "spanner-train-roberta",
+				"type": "python",
+				"request": "launch",
+                "program": "D:/Develop/nl4opt-subtask1/spanner/trainer.py",
+				"python": "D:/Apps/Anaconda3/envs/nl4opt-holajoa/python.exe", 
+				"console": "integratedTerminal",
+				"justMyCode": false, 
+				"args":[
+					"--dataname", "nl4opt-task1", 
+                    "--data_dir", "./data/nl4opt/", 
+                    "--bert_config_dir", "roberta-base", 
+                    "--bert_max_length", "200", 
+                    "--batch_size", "16", 
+                    "--gpus", "1", 
+                    "--accelerator=ddp", 
+                    "--precision=16", 
+                    "--progress_bar_refresh_rate", "1", 
+                    "--lr", "1e-5", 
+                    "--val_check_interval", "0.25", 
+                    "--accumulate_grad_batches", "1", 
+                    "--default_root_dir", "./trained_model/spanner/train_logs/nl4opt-task1/spanner_bert-base-uncased_spMLenTrue_usePruneTrue_useSpLenTrue_useSpMorphTrue_SpWtTrue_value0.5", 
+                    "--model_dropout", "0.2", 
+                    "--bert_dropout", "0.2", 
+                    "--max_epochs", "1", 
+                    "--n_class", "7", 
+                    "--max_spanLen", "5", 
+                    "--tokenLen_emb_dim", "50", 
+                    "--modelName", "spanner_bert-base-uncased_spMLenTrue_usePruneTrue_useSpLenTrue_useSpMorphTrue_SpWtTrue_value0.5", 
+                    "--spanLen_emb_dim", "100", 
+                    "--morph_emb_dim", "100", 
+                    "--use_prune", "True", 
+                    "--use_spanLen", "True", 
+                    "--use_morph", "True", 
+                    "--use_span_weight", "True", 
+                    "--neg_span_weight", "0.5", 
+                    "--param_name", "epoch30_batchsize32_lr1e-5_maxlen200", 
+                    "--gradient_clip_val", "1.0", 
+                    "--optimizer", "adamw"
+				]
 			}
 		]
 	},

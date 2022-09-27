@@ -2,17 +2,13 @@
 
 
 import argparse
-from gc import callbacks
 import os
 # from collections import namedtuple
 from typing import Dict
 
 import pytorch_lightning as pl
 import torch
-from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
-from pytorch_lightning.callbacks import EarlyStopping
-from tokenizers import BertWordPieceTokenizer
+from tokenizers import BertWordPieceTokenizer    # , ByteLevelBPETokenizer
 from torch import Tensor
 from torch.utils.data import DataLoader
 from transformers import AdamW
@@ -22,7 +18,7 @@ from dataloaders.dataload import BERTNERDataset
 from dataloaders.truncate_dataset import TruncateDataset
 from dataloaders.collate_functions import collate_to_max_length
 from models.bert_model_spanner import BertNER
-from models.config_spanner import BertNerConfig
+from models.config_spanner import BertNerConfig, RobertaNerConfig
 from eval_metric import span_f1, span_f1_prune, get_predict, get_predict_prune
 import random
 import logging
@@ -34,10 +30,7 @@ seed_everything(42)
 
 import pickle
 
-
 class BertNerTagger(pl.LightningModule):
-    """MLM Trainer"""
-
     def __init__(
         self,
         args: argparse.Namespace
@@ -55,14 +48,19 @@ class BertNerTagger(pl.LightningModule):
         self.bert_dir = args.bert_config_dir
         self.data_dir = self.args.data_dir
 
-        bert_config = BertNerConfig.from_pretrained(args.bert_config_dir,
-                                                         hidden_dropout_prob=args.bert_dropout,
-                                                         attention_probs_dropout_prob=args.bert_dropout,
-                                                         model_dropout=args.model_dropout)
+        NERConfig = BertNerConfig if 'bert-' in args.bert_config_dir else RobertaNerConfig
+        bert_config = NERConfig.from_pretrained(
+            args.bert_config_dir,
+            hidden_dropout_prob=args.bert_dropout,
+            attention_probs_dropout_prob=args.bert_dropout,
+            model_dropout=args.model_dropout
+        )
 
-        self.model = BertNER.from_pretrained(args.bert_config_dir,
-                                                  config=bert_config,
-                                                  args=self.args)
+        self.model = BertNER.from_pretrained(
+            args.bert_config_dir,
+            config=bert_config,
+            args=self.args
+        )
         logging.info(str(args.__dict__ if isinstance(args, argparse.ArgumentParser) else args))
 
         self.optimizer = args.optimizer
@@ -92,7 +90,7 @@ class BertNerTagger(pl.LightningModule):
         parser.add_argument("--data_dir", type=str, required=True, help="data dir")
         parser.add_argument("--bert_config_dir", type=str, required=True, help="bert config dir")
         parser.add_argument("--pretrained_checkpoint", default="", type=str, help="pretrained checkpoint path")
-        parser.add_argument("--bert_max_length", type=int, default=128, help="max length of dataset")
+        parser.add_argument("--bert_max_length", type=int, default=200, help="max length of dataset")
         parser.add_argument("--batch_size", type=int, default=10, help="batch size")
         parser.add_argument("--lr", type=float, default=1e-5, help="learning rate")
         parser.add_argument("--workers", type=int, default=0, help="num workers for dataloader")
@@ -102,7 +100,7 @@ class BertNerTagger(pl.LightningModule):
                             help="warmup steps used for scheduler.")
         parser.add_argument("--adam_epsilon", default=1e-8, type=float,
                             help="Epsilon for Adam optimizer.")
-        parser.add_argument("--patience", default=10, type=int, help="Early stopping patience.")
+        parser.add_argument("--patience", default=5, type=int, help="Early stopping patience.")
         parser.add_argument("--es_threshold", default=1e-6, type=float)
 
 
@@ -162,10 +160,6 @@ class BertNerTagger(pl.LightningModule):
                             help="range: [0,1.0], the weight of negative span for the loss.")
         parser.add_argument("--neg_span_weight", type=float,default=0.5,
                             help="range: [0,1.0], the weight of negative span for the loss.")
-
-
-
-
         return parser
 
 
@@ -183,10 +177,12 @@ class BertNerTagger(pl.LightningModule):
             },
         ]
         if self.optimizer == "adamw":
-            optimizer = AdamW(optimizer_grouped_parameters,
-                              betas=(0.9, 0.98),  # according to RoBERTa paper
-                              lr=self.args.lr,
-                              eps=self.args.adam_epsilon,)
+            optimizer = AdamW(
+                optimizer_grouped_parameters,
+                betas=(0.9, 0.98),  # according to RoBERTa paper
+                lr=self.args.lr,
+                eps=self.args.adam_epsilon,
+            )
         else:
             optimizer = SGD(optimizer_grouped_parameters, lr=self.args.lr, momentum=0.9)
         num_gpus = len([x for x in str(self.args.gpus).split(",") if x.strip()])
@@ -461,14 +457,31 @@ class BertNerTagger(pl.LightningModule):
         json_path = os.path.join(self.data_dir, f"spanner.{prefix}")
         print("json_path: ", json_path)
         # vocab_path = os.path.join(self.bert_dir, "vocab.txt")
-        vocab_path = f"./vocab/{self.args.bert_config_dir}_vocab.txt"
-        logging.info(f'Load vocab file from {vocab_path}')
-        dataset = BERTNERDataset(self.args, json_path=json_path,
-                                tokenizer=BertWordPieceTokenizer(vocab_path),
-                                # tokenizer=BertWordPieceTokenizer(vocab_file=vocab_path),
-                                max_length=self.args.bert_max_length,
-                                pad_to_maxlen=False
-                                )
+
+        if 'bert-' in self.bert_dir:
+            vocab_path = f"./vocab/{self.bert_dir}/vocab.txt"
+            dataset = BERTNERDataset(
+                self.args, json_path=json_path,
+                # tokenizer=ByteLevelBPETokenizer(), 
+                tokenizer=BertWordPieceTokenizer(vocab_path),
+                max_length=self.args.bert_max_length,
+                pad_to_maxlen=False, 
+            )
+        # elif 'roberta-' in self.bert_dir:
+        #     dataset = BERTNERDataset(
+        #         self.args, json_path=json_path,
+        #         tokenizer=ByteLevelBPETokenizer(
+        #             vocab=f"./vocab/{self.bert_dir}/vocab.json", 
+        #             merges=f"./vocab/{self.bert_dir}/merges.txt", 
+        #             lowercase='uncased' in self.bert_dir, 
+        #             special_tokens=["[CLS]", "[PAD]", "[SEP]"], 
+        #         ), 
+        #         max_length=self.args.bert_max_length,
+        #         pad_to_maxlen=False, 
+        #     )
+        else: 
+            raise NotImplementedError(f'Tokenizer is not yet implemented for pretrained model {self.bert_dir}.')
+        
 
         if limit is not None:
             dataset = TruncateDataset(dataset, limit)
@@ -483,105 +496,3 @@ class BertNerTagger(pl.LightningModule):
             collate_fn=collate_to_max_length
         )
         return dataloader
-
-
-def main():
-    """main"""
-    # parser = get_parser()
-
-    # add model specific args
-    parser = BertNerTagger.get_parser()
-
-    # add all the available trainer options to argparse
-    # ie: now --gpus --num_nodes ... --fast_dev_run all work in the cli
-    parser = Trainer.add_argparse_args(parser)
-
-    args = parser.parse_args()
-
-    # begin{add label2indx augument into the args.}
-    label2idx = {}
-    if 'nl4opt' in args.dataname: 
-        label2idx = {'LIMIT':1, 'CONST_DIR':2, 'VAR':3, 'PARAM':4, 'OBJ_NAME':5, 'OBJ_DIR':6, 'O':0}
-    elif 'conll' in args.dataname:
-        label2idx = {"O": 0, "ORG": 1, "PER": 2, "LOC": 3, "MISC": 4}
-    elif 'note' in args.dataname:
-        label2idx = {'O': 0, 'PERSON': 1, 'ORG': 2, 'GPE': 3, 'DATE': 4, 'NORP': 5, 'CARDINAL': 6, 'TIME': 7,
-                     'LOC': 8,
-                     'FAC': 9, 'PRODUCT': 10, 'WORK_OF_ART': 11, 'MONEY': 12, 'ORDINAL': 13, 'QUANTITY': 14,
-                     'EVENT': 15,
-                     'PERCENT': 16, 'LAW': 17, 'LANGUAGE': 18}
-    elif args.dataname == 'wnut16':
-        label2idx = {'O': 0, 'loc':1, 'facility':2,'movie':3,'company':4,'product':5,'person':6,'other':7,
-                     'tvshow':8,'musicartist':9,'sportsteam':10}
-    elif args.dataname == 'wnut17':
-        label2idx = {'O': 0,'location':1, 'group':2,'corporation':3,'person':4,'creative-work':5,'product':6}
-
-    label2idx_list = []
-    for lab, idx in label2idx.items():
-        pair = (lab, idx)
-        label2idx_list.append(pair)
-    args.label2idx_list = label2idx_list
-    # end{add label2indx augument into the args.}
-
-    # begin{add case2idx augument into the args.}
-    morph2idx_list = []
-    morph2idx = {'isupper': 1, 'islower': 2, 'istitle': 3, 'isdigit': 4, 'other': 5}
-    for morph, idx in morph2idx.items():
-        pair = (morph, idx)
-        morph2idx_list.append(pair)
-    args.morph2idx_list = morph2idx_list
-    # end{add case2idx augument into the args.}
-
-    args.default_root_dir = args.default_root_dir + '_' + args.random_int
-
-    if not os.path.exists(args.default_root_dir):
-        os.makedirs(args.default_root_dir)
-
-    fp_epoch_result = args.default_root_dir + '/epoch_results.txt'
-    args.fp_epoch_result = fp_epoch_result
-
-
-    text = '\n'.join([hp for hp in str(args).replace('Namespace(', '').replace(')', '').split(', ')])
-    print(text)
-
-    text = '\n'.join([hp for hp in str(args).replace('Namespace(', '').replace(')', '').split(', ')])
-    fn_path = args.default_root_dir + '/' + args.param_name+'.txt'
-    if fn_path is not None:
-        with open(fn_path, mode='w', encoding='utf-8') as text_file:
-            text_file.write(text)
-
-    model = BertNerTagger(args)
-    if args.pretrained_checkpoint:
-        model.load_state_dict(torch.load(args.pretrained_checkpoint,
-                                         map_location=torch.device('cpu'))["state_dict"])
-
-    # save the best model
-    checkpoint_callback = ModelCheckpoint(
-        # filepath=args.default_root_dir,
-        dirpath=args.default_root_dir,
-        filename='{epoch:02d}-{val_loss:.2f}-{val_span_f1:.2f}', 
-        save_top_k=1,
-        verbose=True,
-        monitor="val_loss",
-        mode="min",
-        # period=1, 
-    )
-    trainer = Trainer.from_argparse_args(args, checkpoint_callback=True, callbacks=[checkpoint_callback])
-
-    trainer.callbacks.append(
-        EarlyStopping(
-            monitor='val_loss',
-            min_delta=args.es_threshold,
-            patience=args.patience,
-            verbose=True,
-            mode='min', 
-        )
-    )
-
-    trainer.fit(model)
-    trainer.test(model)
-
-
-if __name__ == '__main__':
-    # run_dataloader()
-    main()
