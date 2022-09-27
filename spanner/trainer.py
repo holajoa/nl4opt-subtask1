@@ -102,6 +102,7 @@ class BertNerTagger(pl.LightningModule):
                             help="Epsilon for Adam optimizer.")
         parser.add_argument("--patience", default=5, type=int, help="Early stopping patience.")
         parser.add_argument("--es_threshold", default=1e-6, type=float)
+        parser.add_argument('--epsilon', type=float, help='Adversarial training perturbation hyperparameter', default=0.)
 
 
         parser.add_argument("--model_dropout", type=float, default=0.2,
@@ -196,7 +197,7 @@ class BertNerTagger(pl.LightningModule):
 
     def forward(self, loadall,all_span_lens, all_span_idxs_ltoken,input_ids, attention_mask, token_type_ids):
         """"""
-        return self.model(loadall,all_span_lens,all_span_idxs_ltoken,input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)
+        return self.model(loadall, all_span_lens,all_span_idxs_ltoken,input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)
 
 
     def compute_loss(self, loadall, all_span_rep, span_label_ltoken, real_span_mask_ltoken, mode):
@@ -227,33 +228,51 @@ class BertNerTagger(pl.LightningModule):
 
         return loss
 
-    def training_step(self, batch, batch_idx):
-        """"""
-        tf_board_logs = {
-            "lr": self.trainer.optimizers[0].param_groups[0]['lr']
-        }
-        # tokens, token_type_ids, start_labels, end_labels, start_label_mask, end_label_mask, match_labels, sample_idx, label_idx = batch
-        tokens, token_type_ids, all_span_idxs_ltoken,morph_idxs, span_label_ltoken, all_span_lens,all_span_weights,real_span_mask_ltoken,words,all_span_word,all_span_idxs = batch
-        loadall = [tokens, token_type_ids, all_span_idxs_ltoken,morph_idxs, span_label_ltoken, all_span_lens,all_span_weights,
-                   real_span_mask_ltoken, words, all_span_word, all_span_idxs]
-
+    def perform_forward_step(self, batch, mode='train'):
+        tokens, token_type_ids, all_span_idxs_ltoken, morph_idxs, span_label_ltoken, all_span_lens, all_span_weights, real_span_mask_ltoken, words, all_span_word, all_span_idxs = batch
+        loadall = [tokens, token_type_ids, all_span_idxs_ltoken, morph_idxs, span_label_ltoken, all_span_lens, all_span_weights, real_span_mask_ltoken, words, all_span_word, all_span_idxs]
+        
         attention_mask = (tokens != 0).long()
-        all_span_rep = self.forward(loadall,all_span_lens,all_span_idxs_ltoken,tokens, attention_mask, token_type_ids)
+        all_span_rep = self.forward(loadall, all_span_lens, all_span_idxs_ltoken, tokens, attention_mask, token_type_ids)
         predicts = self.classifier(all_span_rep)
-        # print('all_span_rep.shape: ', all_span_rep.shape)
-
         output = {}
         if self.args.use_prune:
-            span_f1s,pred_label_idx = span_f1_prune(all_span_idxs, predicts, span_label_ltoken, real_span_mask_ltoken)
+            span_f1s, pred_label_idx = span_f1_prune(all_span_idxs, predicts, span_label_ltoken, real_span_mask_ltoken)
         else:
             span_f1s = span_f1(predicts, span_label_ltoken, real_span_mask_ltoken)
         output["span_f1s"] = span_f1s
-        loss = self.compute_loss(loadall,all_span_rep, span_label_ltoken, real_span_mask_ltoken,mode='train')
-        output[f"train_loss"] = loss
+        loss = self.compute_loss(loadall, all_span_rep, span_label_ltoken, real_span_mask_ltoken, mode=mode)
 
-        tf_board_logs[f"loss"] = loss
+        if mode == 'train':
+            output[f"train_loss"] = loss
+            output['loss'] = loss
+        elif mode == 'test/dev':
+            if self.args.use_prune:
+                batch_preds = get_predict_prune(self.args, all_span_word, words, pred_label_idx, span_label_ltoken,
+                                                all_span_idxs)
+            else:
+                batch_preds = get_predict(self.args, all_span_word, words, predicts, span_label_ltoken,
+                                                all_span_idxs)
+            output["batch_preds"] = batch_preds
+            output[f"val_loss"] = loss
+            output["predicts"] = predicts
+            output['all_span_word'] = all_span_word
 
-        output['loss'] = loss
+        return output
+
+    def training_step(self, batch, batch_idx):
+        """"""
+        fgm = self.args.epsilon > 0
+        tf_board_logs = {
+            "lr": self.trainer.optimizers[0].param_groups[0]['lr']
+        }
+        
+        if fgm:
+            embeddings = self.model.bert.embeddings.word_embeddings.weight
+
+        output = self.perform_forward_step(batch, mode='train')
+
+        tf_board_logs[f"loss"] = output['loss']
         output['log'] = tf_board_logs
 
         return output
@@ -283,45 +302,7 @@ class BertNerTagger(pl.LightningModule):
 
 
     def validation_step(self, batch, batch_idx):
-        """"""
-
-        output = {}
-
-        # tokens, token_type_ids, start_labels, end_labels, start_label_mask, end_label_mask, match_labels, sample_idx, label_idx = batch
-        tokens, token_type_ids, all_span_idxs_ltoken, morph_idxs, span_label_ltoken, all_span_lens, all_span_weights, real_span_mask_ltoken, words,all_span_word, all_span_idxs = batch
-        loadall = [tokens, token_type_ids, all_span_idxs_ltoken,morph_idxs, span_label_ltoken, all_span_lens, all_span_weights, real_span_mask_ltoken, words, all_span_word, all_span_idxs]
-
-        attention_mask = (tokens != 0).long()
-        all_span_rep = self.forward(loadall, all_span_lens, all_span_idxs_ltoken, tokens, attention_mask, token_type_ids)
-        predicts = self.classifier(all_span_rep)
-
-        # pred_label_idx_new = torch.zeros_like(real_span_mask_ltoken)
-        if self.args.use_prune:
-            span_f1s, pred_label_idx = span_f1_prune(all_span_idxs, predicts, span_label_ltoken, real_span_mask_ltoken)
-            # print('pred_label_idx_new: ',pred_label_idx_new.shape)
-            # print('predicts: ', predicts.shape)
-            # print('pred_label_idx_new: ',pred_label_idx_new)
-            # print('predicts: ', predicts)
-
-            batch_preds = get_predict_prune(self.args, all_span_word, words, pred_label_idx, span_label_ltoken,
-                                               all_span_idxs)
-        else:
-            span_f1s = span_f1(predicts, span_label_ltoken, real_span_mask_ltoken)
-            batch_preds = get_predict(self.args, all_span_word, words, predicts, span_label_ltoken,
-                                               all_span_idxs)
-
-        output["span_f1s"] = span_f1s
-        loss = self.compute_loss(loadall, all_span_rep, span_label_ltoken, real_span_mask_ltoken, mode='test/dev')
-
-
-        output["batch_preds"] = batch_preds
-        # output["batch_preds_prune"] = pred_label_idx_new
-        output[f"val_loss"] = loss
-
-        output["predicts"] = predicts
-        output['all_span_word'] = all_span_word
-
-        return output
+        return self.perform_forward_step(batch, mode='test/dev')
 
     def validation_epoch_end(self, outputs):
         """"""
