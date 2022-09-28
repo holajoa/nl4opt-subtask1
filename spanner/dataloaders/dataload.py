@@ -3,8 +3,8 @@
 
 import json
 import torch
-from tokenizers import BertWordPieceTokenizer, ByteLevelBPETokenizer
-from tokenizers.processors import TemplateProcessing, BertProcessing
+# from tokenizers import BertWordPieceTokenizer, ByteLevelBPETokenizer
+# from tokenizers.processors import TemplateProcessing, BertProcessing
 from torch.utils.data import Dataset
 from allennlp.data.dataset_readers.dataset_utils import enumerate_spans
 
@@ -273,13 +273,6 @@ class BERTNERDataset(Dataset):
 			caseidx.append(spancase2idx_dic[caseidx1_str])
 
 		return caseidx,spancase2idx_dic
-
-
-
-
-
-
-
 
 	def pad(self, lst, value=None, max_length=None):
 		max_length = max_length or self.max_length

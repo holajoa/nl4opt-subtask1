@@ -3,7 +3,7 @@
 
 import argparse
 import os
-# from collections import namedtuple
+from collections import namedtuple
 from typing import Dict
 
 import pytorch_lightning as pl
@@ -21,7 +21,7 @@ from dataloaders.truncate_dataset import TruncateDataset
 from dataloaders.collate_functions import collate_to_max_length
 from models.bert_model_spanner import BertNER
 from models.config_spanner import BertNerConfig, RobertaNerConfig
-from eval_metric import span_f1, span_f1_prune, get_predict_prune, extract_spans_prune
+from metric_utils import extract_spans_prune, get_pruning_predIdxs
 
 from metric import SpanF1
 
@@ -33,7 +33,6 @@ logger = logging.getLogger(__name__)
 from pytorch_lightning import seed_everything
 seed_everything(42)
 
-import pickle
 
 class BertNerTagger(pl.LightningModule):
     def __init__(
@@ -42,20 +41,27 @@ class BertNerTagger(pl.LightningModule):
     ):
         """Initialize a model, tokenizer and config."""
         super().__init__()
+
         if isinstance(args, argparse.Namespace):
             self.save_hyperparameters(args)
             self.args = args
+            idx2label = {}
+            label2idx_list = self.args.label2idx_list
+            for labidx in label2idx_list:
+                lab, idx = labidx
+                idx2label[int(idx)] = lab
+            self.args.idx2label = idx2label
         else:
             # eval mode
+            idx2label = {}
+            label2idx_list = args['label2idx_list']
+            for labidx in label2idx_list:
+                lab, idx = labidx
+                idx2label[int(idx)] = lab
+            args['idx2label'] = idx2label
             TmpArgs = namedtuple("tmp_args", field_names=list(args.keys()))
             self.args = args = TmpArgs(**args)
-
-        self.args.idx2label = {}
-        label2idx_list = self.args.label2idx_list
-        for labidx in label2idx_list:
-            lab, idx = labidx
-            self.args.idx2label[int(idx)] = lab
-
+       
         self.bert_dir = args.bert_config_dir
         self.data_dir = self.args.data_dir
 
@@ -80,9 +86,6 @@ class BertNerTagger(pl.LightningModule):
         self.max_spanLen = args.max_spanLen
         self.cross_entropy = torch.nn.CrossEntropyLoss(reduction='none')
         self.classifier = torch.nn.Softmax(dim=-1)
-
-        self.fwrite_epoch_res = open(args.fp_epoch_result, 'w', encoding='utf-8')
-        self.fwrite_epoch_res.write("f1, recall, precision, correct_pred, total_pred, total_golden\n")
 
         self.span_f1 = SpanF1()
 
@@ -115,7 +118,6 @@ class BertNerTagger(pl.LightningModule):
         parser.add_argument("--patience", default=5, type=int, help="Early stopping patience.")
         parser.add_argument("--es_threshold", default=1e-6, type=float)
         parser.add_argument('--epsilon', type=float, help='Adversarial training perturbation hyperparameter', default=0.)
-
 
         parser.add_argument("--model_dropout", type=float, default=0.2,
                             help="model dropout rate")
@@ -154,20 +156,15 @@ class BertNerTagger(pl.LightningModule):
         parser.add_argument("--morph_emb_dim", type=int, default=100, help="the embedding dim of the morphology feature.")
         parser.add_argument('--morph2idx_list', type=list, help='a list to store a pair of (morph, index).', )
 
-
         parser.add_argument('--label2idx_list', type=list, help='a list to store a pair of (label, index).',)
-
 
         random_int = '%08d' % (random.randint(0, 100000000))
         print('random_int:', random_int)
 
-        parser.add_argument('--random_int', type=str, default=random_int,help='a list to store a pair of (label, index).', )
-        parser.add_argument('--param_name', type=str, default='param_name',
-                            help='a prexfix for a param file name', )
-        parser.add_argument('--best_dev_f1', type=float, default=0.0,
-                            help='best_dev_f1 value', )
+        parser.add_argument('--random_int', type=str, default=random_int, help='a list to store a pair of (label, index).', )
+        parser.add_argument('--param_name', type=str, default='param_name', help='a prexfix for a param file name', )
+        parser.add_argument('--best_dev_f1', type=float, default=0.0, help='best_dev_f1 value', )
         parser.add_argument('--use_prune', type=str2bool, default=True, help='best_dev_f1 value', )
-
         parser.add_argument("--use_span_weight", type=str2bool, default=True,
                             help="range: [0,1.0], the weight of negative span for the loss.")
         parser.add_argument("--neg_span_weight", type=float,default=0.5,
@@ -244,10 +241,11 @@ class BertNerTagger(pl.LightningModule):
         all_span_rep = self.forward(loadall, all_span_lens, all_span_idxs_ltoken, tokens, attention_mask, token_type_ids)
         predicts = self.classifier(all_span_rep)
         loss = self.compute_loss(loadall, all_span_rep, span_label_ltoken, real_span_mask_ltoken, mode=mode)
+
+        pred_label_idx = torch.max(predicts, dim=-1)[1] # (bs, n_span), get the max indices (predicted tags)
         if self.args.use_prune:
-            span_f1s, pred_label_idx = span_f1_prune(all_span_idxs, predicts, span_label_ltoken, real_span_mask_ltoken)
-        else:
-            span_f1s, pred_label_idx = span_f1(predicts, span_label_ltoken, real_span_mask_ltoken)
+            span_probs = predicts.tolist()
+            pred_label_idx = get_pruning_predIdxs(pred_label_idx, all_span_idxs, span_probs)[-1].cuda()
 
         pred_spans = extract_spans_prune(self.args, words, pred_label_idx, all_span_idxs)
         true_spans = extract_spans_prune(self.args, words, span_label_ltoken, all_span_idxs)
@@ -265,7 +263,6 @@ class BertNerTagger(pl.LightningModule):
             # output['all_span_word'] = all_span_word
         else:
             raise NotImplementedError(f"`mode` must be chosen from ['train', 'test/dev']. ")
-        output["span_f1s"] = span_f1s
         output['pred_spans'] = pred_spans
         return output
 
