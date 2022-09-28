@@ -79,19 +79,21 @@ if fn_path is not None:
 
 model = BertNerTagger(args)
 if args.pretrained_checkpoint:
-    model.load_state_dict(torch.load(args.pretrained_checkpoint,
-                                        map_location=torch.device('cpu'))["state_dict"])
+    model.load_state_dict(
+        torch.load(
+            args.pretrained_checkpoint,
+            map_location=torch.device('cpu'), 
+        )["state_dict"]
+    )
 
 # save the best model
 checkpoint_callback = ModelCheckpoint(
-    # filepath=args.default_root_dir,
     dirpath=args.default_root_dir,
-    filename='{epoch:02d}-{val_loss:.4f}-{val_span_f1:.4f}', 
+    filename='{epoch:02d}-{val_loss:.4f}-{micro@F1:.4f}', 
     save_top_k=1,
     verbose=True,
     monitor="val_loss",
     mode="min",
-    # period=1, 
 )
 trainer = Trainer.from_argparse_args(args, checkpoint_callback=True, callbacks=[checkpoint_callback])
 

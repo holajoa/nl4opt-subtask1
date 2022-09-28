@@ -15,7 +15,7 @@ MODEL_DROPOUT=0.1
 LR=1e-4
 MAXLEN=200
 MAXNORM=1.0
-ADVERSARIAL_PARAM=1e-4
+ADVERSARIAL_PARAM=1e-3
 batchSize=16
 max_spanLen=6
 tokenLen_emb_dim=50
@@ -23,7 +23,7 @@ spanLen_emb_dim=100
 morph_emb_dim=100
 
 
-use_prune=True
+use_prune=False
 use_spanLen=True
 use_morph=True
 use_span_weight=True

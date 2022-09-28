@@ -1,0 +1,31 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "baseline-train",
+            "type": "python",
+            "request": "launch",
+            "program": "D:/Develop/nl4opt-subtask1/baseline/train_model.py",
+            "python": "D:/Apps/Anaconda3/envs/nl4opt-holajoa/python.exe", 
+            "console": "integratedTerminal",
+            "justMyCode": true, 
+            "cwd": "D:/Develop/nl4opt-subtask1/baseline", 
+            "args":[
+                "--train", "../data/train/train.txt", 
+                "--dev", "../data/dev/dev.txt", 
+                "--out_dir", "./trained_model", 
+                "--model_name", "roberta_squad2_lr_2e-5", 
+                "--gpus", "1", 
+                "--epochs", "25", 
+                "--encoder_model", "deepset/roberta-base-squad2", 
+                "--batch_size", "8", 
+                "--lr", "2e-5", 
+                "--max_length", "200", 
+                "--epsilon", "0.5", 
+            ]
+        }, 
+    ]
+}

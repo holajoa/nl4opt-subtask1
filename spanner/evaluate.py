@@ -12,7 +12,7 @@ def evaluate(ckpt, hparams_file):
 	"""main"""
 
 	trainer = Trainer(gpus=[5], distributed_backend="dp")
-	# trainer = Trainer(distributed_backend="dp")
+	# trainer = Trainer(distributed_backend="ddp")
 
 	model = BertNerTagger.load_from_checkpoint(
 		checkpoint_path=ckpt,

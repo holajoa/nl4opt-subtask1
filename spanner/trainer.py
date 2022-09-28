@@ -14,12 +14,17 @@ from torch.utils.data import DataLoader
 from transformers import AdamW
 from torch.optim import SGD
 
+import numpy as np
+
 from dataloaders.dataload import BERTNERDataset
 from dataloaders.truncate_dataset import TruncateDataset
 from dataloaders.collate_functions import collate_to_max_length
 from models.bert_model_spanner import BertNER
 from models.config_spanner import BertNerConfig, RobertaNerConfig
-from eval_metric import span_f1, span_f1_prune, get_predict, get_predict_prune
+from eval_metric import span_f1, span_f1_prune, get_predict_prune, extract_spans_prune
+
+from metric import SpanF1
+
 import random
 import logging
 logger = logging.getLogger(__name__)
@@ -44,6 +49,12 @@ class BertNerTagger(pl.LightningModule):
             # eval mode
             TmpArgs = namedtuple("tmp_args", field_names=list(args.keys()))
             self.args = args = TmpArgs(**args)
+
+        self.args.idx2label = {}
+        label2idx_list = self.args.label2idx_list
+        for labidx in label2idx_list:
+            lab, idx = labidx
+            self.args.idx2label[int(idx)] = lab
 
         self.bert_dir = args.bert_config_dir
         self.data_dir = self.args.data_dir
@@ -70,9 +81,10 @@ class BertNerTagger(pl.LightningModule):
         self.cross_entropy = torch.nn.CrossEntropyLoss(reduction='none')
         self.classifier = torch.nn.Softmax(dim=-1)
 
-
         self.fwrite_epoch_res = open(args.fp_epoch_result, 'w', encoding='utf-8')
         self.fwrite_epoch_res.write("f1, recall, precision, correct_pred, total_pred, total_golden\n")
+
+        self.span_f1 = SpanF1()
 
     @staticmethod
     def get_parser():
@@ -154,8 +166,7 @@ class BertNerTagger(pl.LightningModule):
                             help='a prexfix for a param file name', )
         parser.add_argument('--best_dev_f1', type=float, default=0.0,
                             help='best_dev_f1 value', )
-        parser.add_argument('--use_prune', type=str2bool, default=True,
-                            help='best_dev_f1 value', )
+        parser.add_argument('--use_prune', type=str2bool, default=True, help='best_dev_f1 value', )
 
         parser.add_argument("--use_span_weight", type=str2bool, default=True,
                             help="range: [0,1.0], the weight of negative span for the loss.")
@@ -232,30 +243,30 @@ class BertNerTagger(pl.LightningModule):
         attention_mask = (tokens != 0).long()
         all_span_rep = self.forward(loadall, all_span_lens, all_span_idxs_ltoken, tokens, attention_mask, token_type_ids)
         predicts = self.classifier(all_span_rep)
-        output = {}
+        loss = self.compute_loss(loadall, all_span_rep, span_label_ltoken, real_span_mask_ltoken, mode=mode)
         if self.args.use_prune:
             span_f1s, pred_label_idx = span_f1_prune(all_span_idxs, predicts, span_label_ltoken, real_span_mask_ltoken)
         else:
-            span_f1s = span_f1(predicts, span_label_ltoken, real_span_mask_ltoken)
-        output["span_f1s"] = span_f1s
-        loss = self.compute_loss(loadall, all_span_rep, span_label_ltoken, real_span_mask_ltoken, mode=mode)
+            span_f1s, pred_label_idx = span_f1(predicts, span_label_ltoken, real_span_mask_ltoken)
+
+        pred_spans = extract_spans_prune(self.args, words, pred_label_idx, all_span_idxs)
+        true_spans = extract_spans_prune(self.args, words, span_label_ltoken, all_span_idxs)
+
+        self.span_f1(pred_spans, true_spans)
 
         if mode == 'train':
-            output[f"train_loss"] = loss
-            output['loss'] = loss
+            output = {"loss": loss, "results": self.span_f1.get_metric()}
         elif mode == 'test/dev':
-            if self.args.use_prune:
-                batch_preds = get_predict_prune(self.args, all_span_word, words, pred_label_idx, span_label_ltoken,
-                                                all_span_idxs)
-            else:
-                batch_preds = get_predict(self.args, all_span_word, words, predicts, span_label_ltoken,
-                                                all_span_idxs)
-            output["batch_preds"] = batch_preds
-            output[f"val_loss"] = loss
+            # batch_preds = get_predict_prune(self.args, all_span_word, words, pred_label_idx, span_label_ltoken,
+            #                                     all_span_idxs)
+            output = {"loss": loss, "results": self.span_f1.get_metric()}
+            output["true_spans"] = true_spans
             output["predicts"] = predicts
-            output['all_span_word'] = all_span_word
+            # output['all_span_word'] = all_span_word
         else:
             raise NotImplementedError(f"`mode` must be chosen from ['train', 'test/dev']. ")
+        output["span_f1s"] = span_f1s
+        output['pred_spans'] = pred_spans
         return output
 
     def training_step(self, batch, batch_idx):
@@ -275,151 +286,37 @@ class BertNerTagger(pl.LightningModule):
                 self.model.bert.embeddings.word_embeddings.weight += delta.cuda()
         
         output = self.perform_forward_step(batch, mode='train')
-        tf_board_logs[f"loss"] = output['loss']
-        output['log'] = tf_board_logs
+        self.log_metrics(output['results'], loss=output['loss'], suffix='', on_step=True, on_epoch=False)
 
         return output
 
-
     def training_epoch_end(self, outputs):
-        """"""
-        print("use... training_epoch_end: ", )
-        avg_loss = torch.stack([x['train_loss'] for x in outputs]).mean()
-        tensorboard_logs = {'train_loss': avg_loss}
-        all_counts = torch.stack([x[f'span_f1s'] for x in outputs]).sum(0)
-        correct_pred, total_pred, total_golden = all_counts
-        print('in train correct_pred, total_pred, total_golden: ', correct_pred, total_pred, total_golden)
-        precision =correct_pred / (total_pred+1e-10)
-        recall = correct_pred / (total_golden + 1e-10)
-        f1 = precision * recall * 2 / (precision + recall + 1e-10)
-
-        print("in train span_precision: ", precision)
-        print("in train span_recall: ", recall)
-        print("in train span_f1: ", f1)
-        tensorboard_logs[f"span_precision"] = precision
-        tensorboard_logs[f"span_recall"] = recall
-        tensorboard_logs[f"span_f1"] = f1
-
-        self.fwrite_epoch_res.write(
-            "train: %f, %f, %f, %d, %d, %d\n" % (f1, recall, precision, correct_pred, total_pred, total_golden))
-
+        pred_results = self.span_f1.get_metric(True)
+        avg_loss = np.mean([preds['loss'].item() for preds in outputs])
+        self.log_metrics(pred_results, loss=avg_loss, suffix='', on_step=False, on_epoch=True)
 
     def validation_step(self, batch, batch_idx):
-        return self.perform_forward_step(batch, mode='test/dev')
+        output = self.perform_forward_step(batch, mode='test/dev')
+        self.log_metrics(output['results'], loss=output['loss'], suffix='val_', on_step=True, on_epoch=False)
+        return output
 
     def validation_epoch_end(self, outputs):
-        """"""
-        print("use... validation_epoch_end: ", )
-        avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
-        tensorboard_logs = {'val_loss': avg_loss}
-        all_counts = torch.stack([x[f'span_f1s'] for x in outputs]).sum(0)
-        correct_pred, total_pred, total_golden = all_counts
-        print('correct_pred, total_pred, total_golden: ', correct_pred, total_pred, total_golden)
-        precision = correct_pred / (total_pred+1e-10)
-        recall = correct_pred / (total_golden + 1e-10)
-        f1 = precision * recall * 2 / (precision + recall + 1e-10)
-
-        print("span_precision: ", precision)
-        print("span_recall: ", recall)
-        print("span_f1: ", f1)
-        tensorboard_logs[f"span_precision"] = precision
-        tensorboard_logs[f"span_recall"] = recall
-        tensorboard_logs[f"span_f1"] = f1
-        self.fwrite_epoch_res.write("dev: %f, %f, %f, %d, %d, %d\n"%(f1,recall,precision,correct_pred, total_pred, total_golden) )
-
-        if f1>self.args.best_dev_f1:
-            pred_batch_results = [x['batch_preds'] for x in outputs]
-            fp_write = self.args.default_root_dir +  '/' + self.args.modelName + '_dev.txt'
-            fwrite = open(fp_write, 'w', encoding='utf-8')
-            for pred_batch_result in pred_batch_results:
-                for pred_result in pred_batch_result:
-                    # print("pred_result: ", pred_result)
-                    fwrite.write(pred_result + '\n')
-            self.args.best_dev_f1=f1
-
-            # begin{save the predict prob}
-            all_predicts = [list(x['predicts']) for x in outputs]
-            all_span_words = [list(x['all_span_word']) for x in outputs]
-
-            # begin{get the label2idx dictionary}
-            label2idx = {}
-            label2idx_list = self.args.label2idx_list
-            for labidx in label2idx_list:
-                lab, idx = labidx
-                label2idx[lab] = int(idx)
-                # end{get the label2idx dictionary}
-
-            file_prob1 = self.args.default_root_dir + '/' + self.args.modelName + '_prob_dev.pkl'
-            print("the file path of probs: ", file_prob1)
-            fwrite_prob = open(file_prob1, 'wb')
-            pickle.dump([label2idx, all_predicts, all_span_words], fwrite_prob)
-            # end{save the predict prob...}#
-        
-        self.log_dict({'val_loss': avg_loss, 'val_span_f1':tensorboard_logs['span_f1']})
-        return {'val_loss': avg_loss, 'log': tensorboard_logs}
+        pred_results = self.span_f1.get_metric(True)
+        avg_loss = np.mean([preds['loss'].item() for preds in outputs])
+        self.log_metrics(pred_results, loss=avg_loss, suffix='val_', on_step=False, on_epoch=True)
 
     def test_step(self, batch, batch_idx):
-        """"""
-        return self.validation_step(batch, batch_idx)
+        output = self.perform_forward_step(batch, mode='test/dev')
+        self.log_metrics(output['results'], loss=output['loss'], suffix='_t', on_step=True, on_epoch=False)
+        return output
 
-    def test_epoch_end(
-        self,
-        outputs
-    ) -> Dict[str, Dict[str, Tensor]]:
-        """"""
-        print("use... test_epoch_end: ",)
-        avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
-        tensorboard_logs = {'val_loss': avg_loss}
-        all_counts = torch.stack([x[f'span_f1s'] for x in outputs]).sum(0)
-        correct_pred, total_pred, total_golden = all_counts
-        print('correct_pred, total_pred, total_golden: ', correct_pred, total_pred, total_golden)
-        precision = correct_pred / (total_pred + 1e-10)
-        recall = correct_pred / (total_golden + 1e-10)
-        f1 = precision * recall * 2 / (precision + recall + 1e-10)
+    def test_epoch_end(self, outputs) -> Dict[str, Dict[str, Tensor]]:
+        pred_results = self.span_f1.get_metric()
+        avg_loss = np.mean([preds['loss'].item() for preds in outputs])
+        self.log_metrics(pred_results, loss=avg_loss, on_step=False, on_epoch=True)
 
-        print("span_precision: ", precision)
-        print("span_recall: ", recall)
-        print("span_f1: ", f1)
-        tensorboard_logs[f"span_precision"] = precision
-        tensorboard_logs[f"span_recall"] = recall
-        tensorboard_logs[f"span_f1"] = f1
-
-
-        # begin{save the predict results}
-        pred_batch_results = [x['batch_preds'] for x in outputs]
-        fp_write = self.args.default_root_dir + '/'+self.args.modelName +'_test.txt'
-        fwrite = open(fp_write, 'w', encoding='utf-8')
-        for pred_batch_result in pred_batch_results:
-            for pred_result in pred_batch_result:
-                # print("pred_result: ", pred_result)
-                fwrite.write(pred_result+'\n')
-
-        self.fwrite_epoch_res.write(
-            "test: %f, %f, %f, %d, %d, %d\n" % (f1, recall, precision, correct_pred, total_pred, total_golden))
-        # end{save the predict results}
-
-
-        # begin{save the predict prob}
-        all_predicts = [list(x['predicts'].cpu()) for x in outputs]
-        all_span_words = [list(x['all_span_word']) for x in outputs]
-
-            # begin{get the label2idx dictionary}
-        label2idx = {}
-        label2idx_list = self.args.label2idx_list
-        for labidx in label2idx_list:
-            lab, idx = labidx
-            label2idx[lab] = int(idx)
-            # end{get the label2idx dictionary}
-
-        file_prob1 = self.args.default_root_dir + '/'+self.args.modelName +'_prob_test.pkl'
-        print("the file path of probs: ", file_prob1)
-        fwrite_prob = open(file_prob1, 'wb')
-        pickle.dump([label2idx, all_predicts, all_span_words], fwrite_prob)
-        # end{save the predict prob...}
-
-        self.log('val_loss', avg_loss)
-        self.log_dict(tensorboard_logs)
-        return {'val_loss': avg_loss, 'log': tensorboard_logs}
+        out = {"test_loss": avg_loss, "results": pred_results}
+        return out
 
     def train_dataloader(self) -> DataLoader:
         return self.get_dataloader("train")
@@ -480,3 +377,10 @@ class BertNerTagger(pl.LightningModule):
             collate_fn=collate_to_max_length
         )
         return dataloader
+
+
+    def log_metrics(self, pred_results, loss=0.0, suffix='', on_step=False, on_epoch=True):
+        for key in pred_results:
+            self.log(suffix + key, pred_results[key], on_step=on_step, on_epoch=on_epoch, prog_bar=True, logger=True)
+
+        self.log(suffix + 'loss', loss, on_step=on_step, on_epoch=on_epoch, prog_bar=True, logger=True)

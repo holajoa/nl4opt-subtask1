@@ -64,10 +64,11 @@
 				"name": "spanner-train",
 				"type": "python",
 				"request": "launch",
-                "program": "D:/Develop/nl4opt-subtask1/spanner/trainer.py",
+                "program": "D:/Develop/nl4opt-subtask1/spanner/train_model.py",
 				"python": "D:/Apps/Anaconda3/envs/nl4opt-holajoa/python.exe", 
 				"console": "integratedTerminal",
-				"justMyCode": false, 
+				"justMyCode": true, 
+				"cwd": "D:/Develop/nl4opt-subtask1/spanner/", 
 				"args":[
 					"--dataname", "nl4opt-task1", 
                     "--data_dir", "./data/nl4opt/", 
