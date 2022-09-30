@@ -47,7 +47,6 @@ if args.pretrained_checkpoint:
 trainer = get_trainer(args)
 
 trainer.fit(model)
-torch.save(model.model.end_outputs.weight.data, './weight.pt')
 
 out = trainer.test(model)
 write_eval_performance(out, os.path.join(trainer.checkpoint_callback.dirpath, 'eval_results.tsv'))

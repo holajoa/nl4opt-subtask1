@@ -23,7 +23,8 @@ class BERTNERDataset(Dataset):
 
 	def __init__(self, args, json_path, tokenizer, max_length: int = 128, possible_only=False,
 				 pad_to_maxlen=False):
-		self.all_data = json.load(open(json_path, encoding='ISO-8859-1'))
+		# self.all_data = json.load(open(json_path, encoding='ISO-8859-1'))
+		self.all_data = json.load(open(json_path, encoding='utf-8'))
 		self.tokenizer = tokenizer
 		self.max_length = max_length
 		self.possible_only = possible_only
@@ -103,7 +104,7 @@ class BERTNERDataset(Dataset):
 		# add space offsets
 		words = context.split()
 
-		# golden_span = fill_spans(golden_span, sentence_length=len(words))
+		golden_span = fill_spans(golden_span, sentence_length=len(words))
 
 		# convert the span position into the character index, space is also a position.
 		pos_span_idxs = []
@@ -118,7 +119,7 @@ class BERTNERDataset(Dataset):
 		for span_idx in all_span_idxs:
 			weight = self.args.neg_span_weight
 			if span_idx in pos_span_idxs:
-				weight=1.0
+				weight = 1.0
 			all_span_weights.append(weight)
 		# end{compute the span weight}
 
@@ -321,8 +322,8 @@ class BERTNERDataset(Dataset):
 		n_span_keep = 0
 
 		for start, end in zip(sidxs, eidxs):
-			if origin_offset2token_eidx[end] > max_length - 1 or origin_offset2token_sidx[
-				start] > max_length - 1:
+			if (origin_offset2token_eidx[end] > max_length - 1 or 
+				origin_offset2token_sidx[start] > max_length - 1):
 				continue
 			span_new_sidxs.append(origin_offset2token_sidx[start])
 			span_new_eidxs.append(origin_offset2token_eidx[end])
