@@ -2,7 +2,8 @@
 
 
 import os
-from utils.trainer_utils import get_trainer
+import torch
+from utils.trainer_utils import get_trainer, load_2idx
 
 # from trainer_spanPred import BertLabeling # old evaluation version
 # from trainer_spanPred_newEval import BertLabeling # new evaluation version
@@ -12,23 +13,21 @@ from pytorch_lightning import Trainer
 
 def evaluate(args, ckpt, hparams_file):
 	trainer = get_trainer(args, mode='test')
-	model = BertNerTagger.load_from_checkpoint(
+	model = BertNerTagger(args=args)
+	model = model.load_from_checkpoint(
 		checkpoint_path=ckpt,
 		hparams_file=hparams_file,
-		map_location=None,
+		map_location=torch.device('cuda'),
 		batch_size=args.batch_size,
-		max_length=args.bert_max_length,
-		workers=args.workers, 
+		data_dir=args.data_dir,
 	)
-	out = trainer.test(model=model)
+	out = trainer.test(
+		model=model, 
+		test_dataloaders=model.get_dataloader(
+			data_dir=args.data_dir, prefix='test', 
+		), 
+	)
 	return out
-
-def get_out_filename(out_dir, model, prefix, output_tags=False):
-    model_name = os.path.basename(model)
-    model_name = model_name[:model_name.rfind('.')]
-    if output_tags:
-        return '{}/{}_base_{}_full_output.tsv'.format(out_dir, prefix, model_name)
-    return '{}/{}_base_{}.tsv'.format(out_dir, prefix, model_name)
 
 def write_for_leaderboard(out, out_filename):
     ''' write the micro averaged F1 score to results.out '''
@@ -51,6 +50,7 @@ if __name__ == '__main__':
 	parser = BertNerTagger.get_parser()
 	parser = Trainer.add_argparse_args(parser)
 	args = parser.parse_args()
+	args = load_2idx(args)
 	ckpt = args.pretrained_checkpoint
 	current_model_ver_dir = os.path.dirname(os.path.dirname(os.path.abspath(args.pretrained_checkpoint)))
 	hparams_file = os.path.join(current_model_ver_dir, 'hparams.yaml')

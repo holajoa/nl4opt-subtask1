@@ -1,6 +1,7 @@
 # encoding: utf-8
 
 
+from textwrap import fill
 import torch
 
 
@@ -63,27 +64,26 @@ def get_predict_prune(args, all_span_word, words, predicts_new, span_label_ltoke
         batch_preds.append(text)
     return batch_preds
 
-def extract_spans_prune(args, words, span_tags, all_span_idxs):
+def extract_spans_prune(args, words, span_tags, all_span_idxs, filler_tag='O'):
     '''
     :param all_span_word: tokens for a span;
     :param words: token in sentence-level;
-    :param predicts_new: the prediction of model;
-    :param span_label_ltoken: the label for span;
+    :param span_tags: tags;
     :param all_span_idxs: the position for span;
     '''
     sentence_length = len(words)
 
-    golden_spans = []
+    spans = []
     for span_idxs, span_tags in zip(all_span_idxs, span_tags):
-        ess_golden_span = {}
+        span = {}
         for seid, tag_id in zip(span_idxs, span_tags):
             if tag_id != 0:
                 tag = args.idx2label[int(tag_id.item())]
                 sid, eid = seid
-                ess_golden_span[(sid, eid)] = tag
-        golden_span = fill_spans(ess_golden_span, sentence_length=sentence_length)
-        golden_spans.append(golden_span)
-    return golden_spans
+                span[(sid, eid)] = tag
+        # span = fill_spans(span, sentence_length=sentence_length, filler_tag=filler_tag)
+        spans.append(span)
+    return spans
 
 def fill_spans(spans:dict, sentence_length:int, filler_tag='O'):
     filled_idx = set()
@@ -146,7 +146,6 @@ def clean_overlapping_span(idxs_list,nonO_idxs2prob):
     else:
         if idxs_list[-1] not in didxs:
             kidxs.append(idxs_list[-1])
-
     return kidxs
 
 def get_pruning_predIdxs(pred_label_idx, all_span_idxs,span_probs):
@@ -183,7 +182,6 @@ def get_pruning_predIdxs(pred_label_idx, all_span_idxs,span_probs):
             pred_label_idx_new1.append(nlb_id)
         while len(pred_label_idx_new1) <n_span:
             pred_label_idx_new1.append(0)
-
         pred_label_idx_new.append(pred_label_idx_new1)
     pred_label_idx_new = torch.LongTensor(pred_label_idx_new)
     return nonO_idxs2labs, nonO_kidxs_all, pred_label_idx_new

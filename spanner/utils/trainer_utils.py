@@ -10,7 +10,7 @@ def load_2idx(args):
     # begin{add label2indx augument into the args.}
     label2idx = {}
     if 'nl4opt' in args.dataname: 
-        label2idx = {'LIMIT':1, 'CONST_DIR':2, 'VAR':3, 'PARAM':4, 'OBJ_NAME':5, 'OBJ_DIR':6, 'O':0}
+        label2idx = {"O": 0, "VAR": 1, "CONST_DIR": 2, "LIMIT": 3, "OBJ_DIR": 4, "OBJ_NAME": 5, "PARAM": 6}
     elif 'conll' in args.dataname:
         label2idx = {"O": 0, "ORG": 1, "PER": 2, "LOC": 3, "MISC": 4}
     elif 'note' in args.dataname:
@@ -25,6 +25,7 @@ def load_2idx(args):
     elif args.dataname == 'wnut17':
         label2idx = {'O': 0,'location':1, 'group':2,'corporation':3,'person':4,'creative-work':5,'product':6}
 
+    args.label2idx = label2idx
     label2idx_list = []
     for lab, idx in label2idx.items():
         pair = (lab, idx)
@@ -45,7 +46,8 @@ def load_2idx(args):
 
 def get_trainer(args, mode='train'):
     if mode != 'train':
-        return Trainer.from_argparse_args(args)
+        trainer = Trainer(gpus=1, logger=None)
+        return trainer
     # save the best model
     out_dir = args.default_root_dir
     if not os.path.exists(out_dir + '/lightning_logs/'):
@@ -57,9 +59,7 @@ def get_trainer(args, mode='train'):
     bcp_path  = out_dir + '/lightning_logs/version_' +  str(ver_n) + '/checkpoints/'
     checkpoint_callback = ModelCheckpoint(
         dirpath=bcp_path,
-        filename='{epoch:02d}-{val_loss:.4f}-{val_micro@F1:.4f}', 
-        save_top_k=1,
-        verbose=True,
+        filename='{epoch:02d}-{val_loss:.4f}-{val_micro@F1:.4f}-final', 
         monitor="val_loss",
         mode="min",
     )

@@ -70,7 +70,6 @@ def collate_to_max_length(batch: List[List[torch.Tensor]]) -> List[torch.Tensor]
         words.append(batch[sample_idx][8])
     output.append(words)
 
-
     all_span_word = []
     for sample_idx in range(batch_size):
         all_span_word.append(batch[sample_idx][9])
@@ -80,5 +79,10 @@ def collate_to_max_length(batch: List[List[torch.Tensor]]) -> List[torch.Tensor]
     for sample_idx in range(batch_size):
         all_span_idxs.append(batch[sample_idx][10])
     output.append(all_span_idxs)
+
+    golden_spans = []
+    for sample_idx in range(batch_size):
+        golden_spans.append(batch[sample_idx][11])
+    output.append(golden_spans)
 
     return output

@@ -1,10 +1,9 @@
 export PYTHONPATH="$PWD"
 
-DATA_DIR="./data/nl4opt/"
+DATA_DIR="./data/nl4opt-test/"
 PRETRAINED="bert-base-uncased"
 BERT_DIR=${PRETRAINED}
-CHECKPOINT="D:\Develop\nl4opt-subtask1\spanner\trained_model\spanner_bert-base-uncased\lightning_logs\version_1\checkpoints\epoch=05-val_loss=0.0330-micro@F1=0.9873.ckpt"
-
+CHECKPOINT="D:\Develop\nl4opt-subtask1\spanner\trained_model\spanner_bert-base-cased\lightning_logs\version_0\checkpoints\epoch=04-val_loss=0.0365-val_micro@F1=0.9500-final.ckpt"
 mkdir -p vocab/${PRETRAINED}
 wget -nc https://huggingface.co/${PRETRAINED}/raw/main/vocab.txt 
 mv vocab.txt vocab/${PRETRAINED}/
@@ -13,10 +12,10 @@ dataname=nl4opt-task1
 n_class=7
 BERT_DROPOUT=0.1
 MODEL_DROPOUT=0.1
-LR=1e-4
+LR=3e-5
 MAXLEN=200
 MAXNORM=1.0
-ADVERSARIAL_PARAM=1e-2
+ADVERSARIAL_PARAM=0
 batchSize=16
 max_spanLen=6
 tokenLen_emb_dim=50
@@ -37,7 +36,6 @@ idtest=${dataname}_${modelName}
 param_name=epoch${max_epochs}_batchsize${batchSize}_lr${LR}_maxlen${MAXLEN}
 
 OUTPUT_DIR="./trained_model/${modelName}"
-#mkdir -p $OUTPUT_DIR
 
 CUDA_LAUNCH_BLOCKING=1 python evaluate.py \
 --pretrained_checkpoint $CHECKPOINT \
@@ -52,7 +50,6 @@ CUDA_LAUNCH_BLOCKING=1 python evaluate.py \
 --lr $LR \
 --epsilon $ADVERSARIAL_PARAM \
 --distributed_backend=ddp \
---val_check_interval 0.5 \
 --accumulate_grad_batches 1 \
 --default_root_dir $OUTPUT_DIR \
 --model_dropout $MODEL_DROPOUT \
@@ -71,4 +68,4 @@ CUDA_LAUNCH_BLOCKING=1 python evaluate.py \
 --neg_span_weight $neg_span_weight \
 --param_name $param_name \
 --gradient_clip_val $MAXNORM \
---optimizer "adamw" # >train_logs/${idtest}_epoch${max_epochs}_0606.txt &
+--optimizer "adamw" 

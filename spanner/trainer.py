@@ -37,13 +37,13 @@ seed_everything(42)
 class BertNerTagger(pl.LightningModule):
     def __init__(
         self,
-        args: argparse.Namespace
+        args: argparse.Namespace, 
     ):
         """Initialize a model, tokenizer and config."""
         super().__init__()
 
         if isinstance(args, argparse.Namespace):
-            self.save_hyperparameters(args)
+            self.stage = 'train'
             self.args = args
             idx2label = {}
             label2idx_list = self.args.label2idx_list
@@ -51,7 +51,10 @@ class BertNerTagger(pl.LightningModule):
                 lab, idx = labidx
                 idx2label[int(idx)] = lab
             self.args.idx2label = idx2label
+
+            self.save_hyperparameters(args)
         else:
+            self.stage = 'test/dev'
             # eval mode
             idx2label = {}
             label2idx_list = args['label2idx_list']
@@ -76,7 +79,7 @@ class BertNerTagger(pl.LightningModule):
         self.model = BertNER.from_pretrained(
             args.bert_config_dir,
             config=bert_config,
-            args=self.args
+            args=self.args, 
         )
         logging.info(str(args.__dict__ if isinstance(args, argparse.ArgumentParser) else args))
 
@@ -84,10 +87,25 @@ class BertNerTagger(pl.LightningModule):
         self.n_class = args.n_class
 
         self.max_spanLen = args.max_spanLen
-        self.cross_entropy = torch.nn.CrossEntropyLoss(reduction='none')
+        
         self.classifier = torch.nn.Softmax(dim=-1)
-
         self.span_f1 = SpanF1()
+
+        if (args.obj_name_weight != 1 or args.focal_loss_gamma > 0):
+            ## hard-coded
+            weights = torch.ones(size=(self.args.n_class,)).float()
+            weights[self.args.label2idx['OBJ_NAME']] = args.obj_name_weight
+            self.cross_entropy = torch.hub.load(
+                'adeelh/pytorch-multi-class-focal-loss',
+                model='FocalLoss',
+                alpha=weights,
+                gamma=args.focal_loss_gamma,
+                reduction='none',
+                force_reload=False, 
+            )
+        else:
+            self.cross_entropy = torch.nn.CrossEntropyLoss(reduction='none',)
+        
 
     @staticmethod
     def get_parser():
@@ -118,7 +136,8 @@ class BertNerTagger(pl.LightningModule):
         parser.add_argument("--patience", default=5, type=int, help="Early stopping patience.")
         parser.add_argument("--es_threshold", default=1e-6, type=float)
         parser.add_argument('--epsilon', type=float, help='Adversarial training perturbation hyperparameter', default=0.)
-
+        parser.add_argument('--obj_name_weight', type=float, default=1.)
+        parser.add_argument('--focal_loss_gamma', type=float, default=0.)
         parser.add_argument("--model_dropout", type=float, default=0.2,
                             help="model dropout rate")
         parser.add_argument("--bert_dropout", type=float, default=0.2,
@@ -133,7 +152,7 @@ class BertNerTagger(pl.LightningModule):
         parser.add_argument("--max_spanLen", type=int, default=4, help="max span length")
         # parser.add_argument("--margin", type=float, default=0.03, help="margin of the ranking loss")
         parser.add_argument("--n_class", type=int, default=5, help="the classes of a task")
-        parser.add_argument("--modelName",  default='test', help="the classes of a task")
+        parser.add_argument("--modelName",  default='test')
 
         # parser.add_argument('--use_allspan', type=str2bool, default=True, help='use all the spans with O-labels ', nargs='?',
         #                     choices=['yes (default)', True, 'no', False])
@@ -199,13 +218,13 @@ class BertNerTagger(pl.LightningModule):
         scheduler = torch.optim.lr_scheduler.OneCycleLR(
             optimizer, max_lr=self.args.lr, pct_start=float(self.args.warmup_steps/t_total),
             final_div_factor=self.args.final_div_factor,
-            total_steps=t_total, anneal_strategy='linear'
+            total_steps=t_total, anneal_strategy='linear', 
         )
         return [optimizer], [{"scheduler": scheduler, "interval": "step"}]
 
     def forward(self, loadall,all_span_lens, all_span_idxs_ltoken,input_ids, attention_mask, token_type_ids):
         """"""
-        return self.model(loadall, all_span_lens,all_span_idxs_ltoken,input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)
+        return self.model(loadall, all_span_lens, all_span_idxs_ltoken,input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)
 
 
     def compute_loss(self, loadall, all_span_rep, span_label_ltoken, real_span_mask_ltoken, mode):
@@ -224,18 +243,18 @@ class BertNerTagger(pl.LightningModule):
 
         if mode == 'train' and self.args.use_span_weight: # when training we should multiply the span-weight
             span_weight = loadall[6]
-            loss = loss*span_weight
+            loss = loss * span_weight
 
         loss = torch.masked_select(loss, real_span_mask_ltoken.bool())
-        loss= torch.mean(loss)
+        loss = torch.mean(loss)
 
-        predict = self.classifier(all_span_rep) # shape: (bs, n_span, n_class)
+        # predict = self.classifier(all_span_rep) # shape: (bs, n_span, n_class)
 
         return loss
 
     def perform_forward_step(self, batch, mode=''):
-        tokens, token_type_ids, all_span_idxs_ltoken, morph_idxs, span_label_ltoken, all_span_lens, all_span_weights, real_span_mask_ltoken, words, all_span_word, all_span_idxs = batch
-        loadall = [tokens, token_type_ids, all_span_idxs_ltoken, morph_idxs, span_label_ltoken, all_span_lens, all_span_weights, real_span_mask_ltoken, words, all_span_word, all_span_idxs]
+        tokens, token_type_ids, all_span_idxs_ltoken, morph_idxs, span_label_ltoken, all_span_lens, all_span_weights, real_span_mask_ltoken, words, all_span_word, all_span_idxs, golden_spans = batch
+        loadall = [tokens, token_type_ids, all_span_idxs_ltoken, morph_idxs, span_label_ltoken, all_span_lens, all_span_weights, real_span_mask_ltoken, words, all_span_word, all_span_idxs, golden_spans]
         
         attention_mask = (tokens != 0).long()
         all_span_rep = self.forward(loadall, all_span_lens, all_span_idxs_ltoken, tokens, attention_mask, token_type_ids)
@@ -244,23 +263,23 @@ class BertNerTagger(pl.LightningModule):
 
         pred_label_idx = torch.max(predicts, dim=-1)[1] # (bs, n_span), get the max indices (predicted tags)
         if self.args.use_prune:
-            span_probs = predicts.tolist()
-            pred_label_idx = get_pruning_predIdxs(pred_label_idx, all_span_idxs, span_probs)[-1].cuda()
+            pred_label_idx = get_pruning_predIdxs(pred_label_idx, all_span_idxs, predicts.tolist())[-1].cuda()
 
         pred_spans = extract_spans_prune(self.args, words, pred_label_idx, all_span_idxs)
-        true_spans = extract_spans_prune(self.args, words, span_label_ltoken, all_span_idxs)
-
-        self.span_f1(pred_spans, true_spans)
-
+        self.span_f1(pred_spans, golden_spans)
+        
         if mode == 'train':
             output = {"loss": loss, "results": self.span_f1.get_metric()}
+            # output["true_spans"] = true_spans
         elif mode == 'test/dev':
             # batch_preds = get_predict_prune(self.args, all_span_word, words, pred_label_idx, span_label_ltoken,
             #                                     all_span_idxs)
-            output = {"loss": loss, "results": self.span_f1.get_metric()}
-            output["true_spans"] = true_spans
-            output["predicts"] = predicts
+            output = {"val_loss": loss, "results": self.span_f1.get_metric()}
+            # output["true_spans"] = true_spans
+            output["logits"] = predicts
             # output['all_span_word'] = all_span_word
+        elif mode == 'predict':
+            pass
         else:
             raise NotImplementedError(f"`mode` must be chosen from ['train', 'test/dev']. ")
         output['pred_spans'] = pred_spans
@@ -269,7 +288,6 @@ class BertNerTagger(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         """"""
         fgm = self.args.epsilon > 0
-        tf_board_logs = {"lr": self.trainer.optimizers[0].param_groups[0]['lr']}
         
         if fgm:
             embeddings = self.model.bert.embeddings.word_embeddings.weight
@@ -278,13 +296,12 @@ class BertNerTagger(pl.LightningModule):
             loss_.backward(inputs=embeddings)
             grads = self.model.bert.embeddings.word_embeddings.weight.grad
             # Add perturbations (Fast Gradient Method/FGM)
-            delta = self.args.epsilon * grads / (torch.sqrt((grads**2).sum()) + 1e-8)
+            delta = self.args.epsilon * grads / (torch.sqrt((grads**2).sum()) + 1e-10)
             with torch.no_grad():
                 self.model.bert.embeddings.word_embeddings.weight += delta.cuda()
         
         output = self.perform_forward_step(batch, mode='train')
         self.log_metrics(output['results'], loss=output['loss'], suffix='', on_step=True, on_epoch=False)
-
         return output
 
     def training_epoch_end(self, outputs):
@@ -294,48 +311,41 @@ class BertNerTagger(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         output = self.perform_forward_step(batch, mode='test/dev')
-        self.log_metrics(output['results'], loss=output['loss'], suffix='val_', on_step=True, on_epoch=False)
+        self.log_metrics(output['results'], loss=output['val_loss'], suffix='val_', on_step=True, on_epoch=False)
         return output
 
     def validation_epoch_end(self, outputs):
         pred_results = self.span_f1.get_metric(True)
-        avg_loss = np.mean([preds['loss'].item() for preds in outputs])
+        avg_loss = np.mean([preds['val_loss'].item() for preds in outputs])
         self.log_metrics(pred_results, loss=avg_loss, suffix='val_', on_step=False, on_epoch=True)
 
     def test_step(self, batch, batch_idx):
         output = self.perform_forward_step(batch, mode='test/dev')
-        self.log_metrics(output['results'], loss=output['loss'], suffix='_t', on_step=True, on_epoch=False)
+        self.log_metrics(output['results'], loss=output['val_loss'], suffix='test_', on_step=True, on_epoch=False)
         return output
 
     def test_epoch_end(self, outputs) -> Dict[str, Dict[str, Tensor]]:
         pred_results = self.span_f1.get_metric()
-        avg_loss = np.mean([preds['loss'].item() for preds in outputs])
+        avg_loss = np.mean([preds['val_loss'].item() for preds in outputs])
         self.log_metrics(pred_results, loss=avg_loss, on_step=False, on_epoch=True)
-
         out = {"test_loss": avg_loss, "results": pred_results}
         return out
 
     def train_dataloader(self) -> DataLoader:
-        return self.get_dataloader("train")
+        return self.get_dataloader(prefix="train")
         # return self.get_dataloader("dev", 100)
 
     def val_dataloader(self):
-        val_data = self.get_dataloader("dev")
-        return val_data
+        return self.get_dataloader(prefix="dev")
 
     def test_dataloader(self):
-        return self.get_dataloader("test")
-        # return self.get_dataloader("dev")
+        return self.get_dataloader(prefix="test")
 
-    def get_dataloader(self, prefix="train", limit: int = None) -> DataLoader:
-        """get training dataloader"""
-        """
-        load_mmap_dataset
-        """
-        json_path = os.path.join(self.data_dir, f"spanner.{prefix}")
+    def get_dataloader(self, prefix="train",  data_dir=None, limit:int = None) -> DataLoader:
+        if data_dir == None:
+            data_dir = self.data_dir
+        json_path = os.path.join(data_dir, f"spanner.{prefix}")
         print("json_path: ", json_path)
-        # vocab_path = os.path.join(self.bert_dir, "vocab.txt")
-
         if 'bert-' in self.bert_dir:
             vocab_path = f"./vocab/{self.bert_dir}/vocab.txt"
             dataset = BERTNERDataset(
@@ -345,21 +355,8 @@ class BertNerTagger(pl.LightningModule):
                 max_length=self.args.bert_max_length,
                 pad_to_maxlen=False, 
             )
-        # elif 'roberta-' in self.bert_dir:
-        #     dataset = BERTNERDataset(
-        #         self.args, json_path=json_path,
-        #         tokenizer=ByteLevelBPETokenizer(
-        #             vocab=f"./vocab/{self.bert_dir}/vocab.json", 
-        #             merges=f"./vocab/{self.bert_dir}/merges.txt", 
-        #             lowercase='uncased' in self.bert_dir, 
-        #             special_tokens=["[CLS]", "[PAD]", "[SEP]"], 
-        #         ), 
-        #         max_length=self.args.bert_max_length,
-        #         pad_to_maxlen=False, 
-        #     )
         else: 
             raise NotImplementedError(f'Tokenizer is not yet implemented for pretrained model {self.bert_dir}.')
-        
 
         if limit is not None:
             dataset = TruncateDataset(dataset, limit)
@@ -368,13 +365,11 @@ class BertNerTagger(pl.LightningModule):
             dataset=dataset,
             batch_size=self.args.batch_size,
             num_workers=self.args.workers,
-            shuffle=True if prefix == "train" else False,
-            # shuffle=False,
+            shuffle=prefix=="train",
             drop_last=False,
-            collate_fn=collate_to_max_length
+            collate_fn=collate_to_max_length, 
         )
         return dataloader
-
 
     def log_metrics(self, pred_results, loss=0.0, suffix='', on_step=False, on_epoch=True):
         for key in pred_results:

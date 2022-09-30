@@ -1,9 +1,10 @@
 import numpy as np
+import argparse
 import json
 import codecs
 from collections import Counter
 import os
-
+import logging
 
 def get_chunk_type(tok):
 	"""
@@ -62,9 +63,9 @@ def get_chunks(seq):
 	return chunks
 
 
-def keep_spanPred_data(dataname, fpath_bio,column_no,delimiter):
+def keep_spanPred_data(dataname, fpath_bio, column_no,delimiter, tag_dic=None):
 	word_seqs, trueTag_seqs, word_seqs_sent, trueTag_seqs_sent = read_data(
-		dataname, fpath_bio, column_no=column_no,delimiter =delimiter)  # column_no=3 for ontonotes5.0
+		dataname, fpath_bio, column_no=column_no, delimiter=delimiter)  # column_no=3 for ontonotes5.0
 
 	all_labs = []
 	for tag in trueTag_seqs:
@@ -78,12 +79,15 @@ def keep_spanPred_data(dataname, fpath_bio,column_no,delimiter):
 
 	counter = Counter(all_labs).most_common()
 
-	tag_dic = {"O":0}
-	for i,elem in enumerate(counter):
-		tag, c = elem
-		tag_dic[tag] =i+1
+	if tag_dic:
+		for elem in counter:
+			assert elem[0] in tag_dic.keys(), f'Tag {elem[0]} is not in the tag_dict provided.'
+	else:
+		tag_dic = {"O":0}
+		for i, elem in enumerate(counter):
+			tag, c = elem
+			tag_dic[tag] = i+1
 	print(tag_dic)
-
 
 	all_datas = []
 	for i, (tokens,labs) in enumerate(zip(word_seqs_sent, trueTag_seqs_sent)):
@@ -106,7 +110,6 @@ def keep_spanPred_data(dataname, fpath_bio,column_no,delimiter):
 
 		all_datas.append(one_samp)
 
-
 	return all_datas
 
 
@@ -117,6 +120,7 @@ def read_data(corpus_type, fn, column_no=-1, delimiter =' '):
 	total_word_sequences = list()
 	total_tag_sequences = list()
 	with codecs.open(fn, 'r', 'utf-8') as f:
+		logging.info(f'Reading data from file {fn}')
 		lines = f.readlines()
 	curr_words = list()
 	curr_tags = list()
@@ -151,33 +155,50 @@ def read_data(corpus_type, fn, column_no=-1, delimiter =' '):
 
 	return total_word_sequences, total_tag_sequences, word_sequences,tag_sequences
 
+def parse_args():
+	p = argparse.ArgumentParser(description='Data preprocess', add_help=False)
+	p.add_argument('--data_dir', type=str, help='Path to data.', required=True)
+	p.add_argument('--output_dir', type=str, required=True)
+	p.add_argument('--delimiter', type=str, default='\t')
+	p.add_argument('--suffix', type=str, help="suffixes of data file, choose among train, dev and test, use ',' to separate", default='train,dev,test')
+	p.add_argument('--data_format', type=str, default='conll')
+	p.add_argument('--tag_dict_dir', type=str)
+	return p.parse_args()
+
 
 if __name__ == '__main__':
-	dataname = 'conll'
+	logging.info('Converting BIO format data to SpanNER format.')
+	sg = parse_args()
+	dataname = sg.data_format
 
-	# suffixs = ['train', 'dev', 'test']
-	suffixs = ['train', 'dev']
+	suffixs = sg.suffix.split(',')
 	column_no = -1 # tag position
-	delimiter = '\t'
+	delimiter = sg.delimiter
+
 	if dataname =='ontonote5':
 		column_no = 3
 	elif 'wnut' in dataname:
-		column_no =1
+		column_no = 1
 		delimiter = '\t'
 
-	# convsert conll-2003 to spanner format
-	fpath_bio1 = './data/nl4opt_bio/'
-	dump_path = "./data/nl4opt/"
+	# convert conll-2003 to spanner format
+	fpath_bio1 = sg.data_dir
+	dump_path = sg.output_dir
 
 	if not os.path.exists(dump_path):
 		os.makedirs(dump_path)
+	
+	if sg.tag_dict_dir:
+		with open(sg.tag_dict_dir, 'r') as fp:
+			tag_dict = json.load(fp)
+	else: 
+		tag_dict = None
 
 	for suffix in suffixs:
-		fpath_bio = fpath_bio1 +'/' +suffix+'.txt'
+		fpath_bio = fpath_bio1 + '/' + suffix +'.txt'
 
-		all_data = keep_spanPred_data(dataname, fpath_bio, column_no,delimiter)
+		all_data = keep_spanPred_data(dataname, fpath_bio, column_no, delimiter, tag_dict)
 		dump_file_path = dump_path + 'spanner.' + suffix
 		with open(dump_file_path, "w") as f:
+			logging.info(f'Writing to file {dump_file_path}')
 			json.dump(all_data, f, sort_keys=True, ensure_ascii=False, indent=2)
-
-

@@ -8,6 +8,8 @@ from pytorch_lightning import Trainer
 
 from utils.trainer_utils import load_2idx, get_trainer
 from trainer import BertNerTagger
+from evaluate import write_eval_performance
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -39,11 +41,14 @@ if args.pretrained_checkpoint:
     model.load_state_dict(
         torch.load(
             args.pretrained_checkpoint,
-            map_location=torch.device('cpu'), 
+            map_location=torch.device('cuda'), 
         )["state_dict"]
     )
 
 trainer = get_trainer(args)
 
 trainer.fit(model)
-trainer.test(model)
+torch.save(model.model.end_outputs.weight.data, './weight.pt')
+
+out = trainer.validate(model, val_dataloaders=model.get_dataloader(prefix='train'))
+write_eval_performance(out, os.path.join(trainer.checkpoint_callback.dirpath, 'eval_results.tsv'))

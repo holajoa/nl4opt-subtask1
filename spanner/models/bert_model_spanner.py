@@ -120,6 +120,4 @@ class BertNER(BertPreTrainedModel):
             all_span_rep = torch.cat((all_span_rep,spanlen_rep, span_morph_rep), dim=-1)
             all_span_rep = self.span_embedding(all_span_rep)  # (batch,n_span,n_class)
 
-
         return all_span_rep
-

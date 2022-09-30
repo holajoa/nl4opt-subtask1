@@ -1,5 +1,6 @@
 # encoding: utf-8
 
+import sys
 
 import json
 import torch
@@ -7,7 +8,7 @@ import torch
 # from tokenizers.processors import TemplateProcessing, BertProcessing
 from torch.utils.data import Dataset
 from allennlp.data.dataset_readers.dataset_utils import enumerate_spans
-
+from metric_utils import fill_spans
 
 
 class BERTNERDataset(Dataset):
@@ -89,16 +90,20 @@ class BERTNERDataset(Dataset):
 			context = context.replace('  ', ' ')
 
 		span_idxLab = data["span_posLabel"]
+		golden_span = {}
 
 		sidxs = []
 		eidxs = []
 		for seidx, label in span_idxLab.items():
 			sidx, eidx = seidx.split(';')
+			golden_span[(int(sidx), int(eidx))] = label
 			sidxs.append(int(sidx))
 			eidxs.append(int(eidx))
 
 		# add space offsets
 		words = context.split()
+
+		# golden_span = fill_spans(golden_span, sentence_length=len(words))
 
 		# convert the span position into the character index, space is also a position.
 		pos_span_idxs = []
@@ -208,6 +213,7 @@ class BERTNERDataset(Dataset):
 			words,
 			all_span_word,
 			all_span_idxs,
+			golden_span, 
 		]
 
 
@@ -234,13 +240,13 @@ class BERTNERDataset(Dataset):
 					tfeat = 'isdigit'
 				else:
 					tfeat = 'other'
-				caseidx1[j] =morph2idx[tfeat]
+				caseidx1[j] = morph2idx[tfeat]
 			caseidxs.append(caseidx1)
 
 		return caseidxs
 
 
-	def case_feature_spanLevel(self,spancase2idx_dic,span_idxs,words):
+	def case_feature_spanLevel(self, spancase2idx_dic, span_idxs,words):
 		'''
 		this function use to characterize the capitalization feature.
 		:return:
@@ -256,7 +262,7 @@ class BERTNERDataset(Dataset):
 			for token in span_word:
 				tfeat = ''
 				if token.isupper():
-					tfeat='isupper'
+					tfeat ='isupper'
 				elif token.islower():
 					tfeat = 'islower'
 				elif token.istitle():
@@ -330,6 +336,5 @@ class BERTNERDataset(Dataset):
 		span_idxs_ltoken = []
 		for sidx, eidx in zip(span_new_sidxs, span_new_eidxs):
 			span_idxs_ltoken.append((sidx, eidx))
-
 
 		return span_idxs_ltoken, all_span_word, span_idxs_new_label
