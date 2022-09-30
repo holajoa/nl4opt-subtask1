@@ -78,3 +78,19 @@ def get_trainer(args, mode='train'):
         logger=logger, 
     )
     return trainer
+
+def write_for_leaderboard(out, out_filename):
+    ''' write the micro averaged F1 score to results.out '''
+    open(out_filename, 'wt').write(str(out[0]["micro@F1"]))
+
+def write_eval_performance(eval_performance, out_file):
+    outstr = ''
+    added_keys = set()
+    for out_ in eval_performance:
+        for k in out_:
+            if k in added_keys or k in ['results', 'predictions']:
+                continue
+            outstr = outstr + '{}\t{}\n'.format(k, out_[k])
+            added_keys.add(k)
+
+    open(out_file, 'wt').write(outstr)

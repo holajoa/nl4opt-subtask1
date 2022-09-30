@@ -20,15 +20,19 @@ pip install https://download.pytorch.org/whl/cu115/torch-1.11.0%2Bcu115-cp39-cp3
 pip install torchmetrics==0.6.0
 
 # Handle the data
+RAW_DATA_DIR="./data/nl4opt_bio"
 DATA_DIR="./data/nl4opt/"
-python ./dataprocess/bio2spannerformat.py --data_dir . --output_dir $DATA_DIR --suffix test
+mkdir -p $RAW_DATA_DIR
+mv ../data/train/train.txt $RAW_DATA_DIR
+mv ../data/dev/dev.txt $RAW_DATA_DIR
+mv ./test.txt $RAW_DATA_DIR
+python ./dataprocess/bio2spannerformat.py --data_dir $RAW_DATA_DIR --output_dir $DATA_DIR --suffix train,dev,test --tag_dict_dir ./dataprocess/label2idx.json
 
-# Evaluate trained model on test set and print results to "results.out"
 export PYTHONPATH="$PWD"
 
 PRETRAINED="bert-base-cased"
 BERT_DIR=${PRETRAINED}
-CHECKPOINT="D:\Develop\nl4opt-subtask1\spanner\trained_model\spanner_bert-base-cased\lightning_logs\version_0\checkpoints\epoch=03-val_loss=0.0335-val_micro@F1=0.9710.ckpt"
+
 
 mkdir -p vocab/${PRETRAINED}
 wget -nc https://huggingface.co/${PRETRAINED}/raw/main/vocab.txt 
@@ -38,10 +42,10 @@ dataname=nl4opt-task1
 n_class=7
 BERT_DROPOUT=0.1
 MODEL_DROPOUT=0.1
-LR=1e-4
+LR=3e-5
 MAXLEN=200
 MAXNORM=1.0
-ADVERSARIAL_PARAM=1e-2
+ADVERSARIAL_PARAM=0
 batchSize=16
 max_spanLen=6
 tokenLen_emb_dim=50
@@ -64,8 +68,7 @@ param_name=epoch${max_epochs}_batchsize${batchSize}_lr${LR}_maxlen${MAXLEN}
 OUTPUT_DIR="./trained_model/${modelName}"
 #mkdir -p $OUTPUT_DIR
 
-CUDA_LAUNCH_BLOCKING=1 python evaluate.py \
---pretrained_checkpoint $CHECKPOINT \
+CUDA_LAUNCH_BLOCKING=1 python train_model.py \
 --dataname $dataname \
 --data_dir $DATA_DIR \
 --bert_config_dir $BERT_DIR \
@@ -78,7 +81,10 @@ CUDA_LAUNCH_BLOCKING=1 python evaluate.py \
 --epsilon $ADVERSARIAL_PARAM \
 --distributed_backend=ddp \
 --val_check_interval 0.5 \
+--patience 5 \
 --accumulate_grad_batches 1 \
+--obj_name_weight 1 \
+--focal_loss_gamma 0 \
 --default_root_dir $OUTPUT_DIR \
 --model_dropout $MODEL_DROPOUT \
 --bert_dropout $BERT_DROPOUT \
@@ -96,4 +102,4 @@ CUDA_LAUNCH_BLOCKING=1 python evaluate.py \
 --neg_span_weight $neg_span_weight \
 --param_name $param_name \
 --gradient_clip_val $MAXNORM \
---optimizer "adamw"
+--optimizer "adamw" 

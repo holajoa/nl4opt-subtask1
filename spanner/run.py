@@ -6,7 +6,7 @@ import os
 import torch
 from pytorch_lightning import Trainer
 
-from utils.trainer_utils import load_2idx, get_trainer, write_eval_performance
+from utils.trainer_utils import load_2idx, get_trainer, write_eval_performance, write_for_leaderboard
 from trainer import BertNerTagger
 
 import logging
@@ -51,3 +51,4 @@ torch.save(model.model.end_outputs.weight.data, './weight.pt')
 
 out = trainer.test(model)
 write_eval_performance(out, os.path.join(trainer.checkpoint_callback.dirpath, 'eval_results.tsv'))
+write_for_leaderboard(out, "results.out")
