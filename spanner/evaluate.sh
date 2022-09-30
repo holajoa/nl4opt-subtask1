@@ -63,7 +63,7 @@ CUDA_LAUNCH_BLOCKING=1 python run.py \
 --patience 5 \
 --accumulate_grad_batches 1 \
 --obj_name_weight 1 \
---focal_loss_gamma 0.5 \
+--focal_loss_gamma 0. \
 --default_root_dir $OUTPUT_DIR \
 --model_dropout $MODEL_DROPOUT \
 --bert_dropout $BERT_DROPOUT \
