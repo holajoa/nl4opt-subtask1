@@ -323,7 +323,7 @@
     }
   },
   {
-    "context": "A wood artist manufactures two types of decors made of rosewood . The first product , a vase d¨¦cor , requires 20 minutes each for carving and 14 minutes each for polishing . The second d¨¦cor is a wood canvas and it requires 18 minutes each for carving and 8 minutes each for polishing . There are 400 minutes available for carving and 640 for polishing . The profit is $ 50 each for vase d¨¦cor and $ 85 for each wood canvas . How many decors of each type should the artist creates in order to maximize her profit ?",
+    "context": "A wood artist manufactures two types of decors made of rosewood . The first product , a vase dÃ©cor , requires 20 minutes each for carving and 14 minutes each for polishing . The second dÃ©cor is a wood canvas and it requires 18 minutes each for carving and 8 minutes each for polishing . There are 400 minutes available for carving and 640 for polishing . The profit is $ 50 each for vase dÃ©cor and $ 85 for each wood canvas . How many decors of each type should the artist creates in order to maximize her profit ?",
     "span_posLabel": {
       "17;18": "VAR",
       "21;21": "PARAM",
@@ -1900,7 +1900,7 @@
     }
   },
   {
-    "context": "A furniture company sells two types of tables ¨C a dinning table and a coffee table . They cost $ 250 and $ 150 to make respectively . The company estimates that the total monthly demand of these two types of tables combined will be at most 200 units . The monthly manufacturing budget on tables is $ 20000 . Determine the number of units of each type of tables the company should make to get maximum profit if the profit on each dinning table and coffee table are $ 200 and $ 100 respectively .",
+    "context": "A furniture company sells two types of tables â€“ a dinning table and a coffee table . They cost $ 250 and $ 150 to make respectively . The company estimates that the total monthly demand of these two types of tables combined will be at most 200 units . The monthly manufacturing budget on tables is $ 20000 . Determine the number of units of each type of tables the company should make to get maximum profit if the profit on each dinning table and coffee table are $ 200 and $ 100 respectively .",
     "span_posLabel": {
       "10;11": "VAR",
       "14;15": "VAR",
@@ -2288,7 +2288,7 @@
     }
   },
   {
-    "context": "A clothing designer manufactures three dresses : long , short , and mini . These dresses are produced in two different factories : a local one , and a foreign one . Running the local factory for an hour costs $ 600 and produces 23 long dresses , 11 short dresses , and 13 mini dresses . Running the foreign factory for an hour costs $ 300 and yields 15 long dresses , 30 short dresses , and 15 mini dresses . To meet customer demands , a minimum of 74 long dresses , 34 short dresses , and 26 mini dresses must be produced daily . Graphically determine a daily production plan that minimizes the cost of meeting the clothing designer ¡¯s daily demands .",
+    "context": "A clothing designer manufactures three dresses : long , short , and mini . These dresses are produced in two different factories : a local one , and a foreign one . Running the local factory for an hour costs $ 600 and produces 23 long dresses , 11 short dresses , and 13 mini dresses . Running the foreign factory for an hour costs $ 300 and yields 15 long dresses , 30 short dresses , and 15 mini dresses . To meet customer demands , a minimum of 74 long dresses , 34 short dresses , and 26 mini dresses must be produced daily . Graphically determine a daily production plan that minimizes the cost of meeting the clothing designer â€™s daily demands .",
     "span_posLabel": {
       "114;114": "OBJ_DIR",
       "116;116": "OBJ_NAME",
@@ -6893,7 +6893,7 @@
     }
   },
   {
-    "context": "A hedge fund is attempting to determine where its assets should be invested during the current year . At present , $ 3,200,000 is available for investment in stocks , options , security swaps , and futures . The annual rate of return on each type of investment is known to be : stocks , 11 % ; options , 30 % ; security swaps , 5 % ; futures , 15 % . To ensure that the hedge fund ¡¯s portfolio is not too risky , the hedge fund ¡¯s investment manager has placed the following three restrictions on the hedge fund ¡¯s portfolio : a The amount invested in futures can not exceed the amount invested in stocks . b At most 35 % of the total amount invested may be in futures . c The amount invested in options can not exceed the amount invested in security swaps . The hedge fund ¡¯s objective is to maximize the annual return on its investment portfolio . Formulate an LP that will enable the hedge fund to meet this goal .",
+    "context": "A hedge fund is attempting to determine where its assets should be invested during the current year . At present , $ 3,200,000 is available for investment in stocks , options , security swaps , and futures . The annual rate of return on each type of investment is known to be : stocks , 11 % ; options , 30 % ; security swaps , 5 % ; futures , 15 % . To ensure that the hedge fund â€™s portfolio is not too risky , the hedge fund â€™s investment manager has placed the following three restrictions on the hedge fund â€™s portfolio : a The amount invested in futures can not exceed the amount invested in stocks . b At most 35 % of the total amount invested may be in futures . c The amount invested in options can not exceed the amount invested in security swaps . The hedge fund â€™s objective is to maximize the annual return on its investment portfolio . Formulate an LP that will enable the hedge fund to meet this goal .",
     "span_posLabel": {
       "111;111": "VAR",
       "112;114": "CONST_DIR",
@@ -13426,7 +13426,7 @@
     }
   },
   {
-    "context": "Elias Investments is attempting to determine where its assets should be invested during the current year . At present , $ 2,500,000 is available for investment in gold , silver , platinum , and diamond . The annual rate of return on each type of investment is known to be : gold , 5 % ; silver , 3.2 % ; platinum , 7 % ; diamond , 10 % . To ensure that the company 's portfolio is not too risky , the investment manager has placed the following three restrictions : a The amount invested in diamond can not exceed the amount invested in gold . b At most 35 % of the total amount invested may be in diamond . c The amount invested in silver can not exceed the amount invested in platinum . The company ¡¯s objective is to maximize the annual return on its investment portfolio . Formulate an LP that will enable the company to meet this goal .",
+    "context": "Elias Investments is attempting to determine where its assets should be invested during the current year . At present , $ 2,500,000 is available for investment in gold , silver , platinum , and diamond . The annual rate of return on each type of investment is known to be : gold , 5 % ; silver , 3.2 % ; platinum , 7 % ; diamond , 10 % . To ensure that the company 's portfolio is not too risky , the investment manager has placed the following three restrictions : a The amount invested in diamond can not exceed the amount invested in gold . b At most 35 % of the total amount invested may be in diamond . c The amount invested in silver can not exceed the amount invested in platinum . The company â€™s objective is to maximize the annual return on its investment portfolio . Formulate an LP that will enable the company to meet this goal .",
     "span_posLabel": {
       "106;106": "VAR",
       "109;110": "CONST_DIR",
@@ -15851,7 +15851,7 @@
     }
   },
   {
-    "context": "Nova Furniture sells two types of chairs ¨C a desk chair and a garden chair . Each desk chair costs $ 200 to make and each garden chair costs $ 300 to make . The company estimates that the total monthly demand of these two types of chairs combined will be at most 250 units . The monthly manufacturing budget for chairs is $ 35000 . Determine the number of units of each type of chair the company should make to get maximum profit if the profit on each desk chair and garden chair are $ 100 and $ 150 , respectively .",
+    "context": "Nova Furniture sells two types of chairs â€“ a desk chair and a garden chair . Each desk chair costs $ 200 to make and each garden chair costs $ 300 to make . The company estimates that the total monthly demand of these two types of chairs combined will be at most 250 units . The monthly manufacturing budget for chairs is $ 35000 . Determine the number of units of each type of chair the company should make to get maximum profit if the profit on each desk chair and garden chair are $ 100 and $ 150 , respectively .",
     "span_posLabel": {
       "13;14": "VAR",
       "17;18": "VAR",
@@ -16261,7 +16261,7 @@
     }
   },
   {
-    "context": "Tom Designs manufactures three coats : long , short , and mini . These coats are produced in two different factories : a north one and a south one . Running the north factory for an hour costs $ 200 and produces 20 long coats , 15 short coats , and 10 mini coats . Running the south factory for an hour costs $ 400 and yields 30 long coats , 25 short coats , and 30 mini coats . To meet customer demands , a minimum of 75 long coats , 30 short coats , and 40 mini coats must be produced daily . Determine a daily production plan that minimizes the cost of meeting the company ¡¯s daily demands .",
+    "context": "Tom Designs manufactures three coats : long , short , and mini . These coats are produced in two different factories : a north one and a south one . Running the north factory for an hour costs $ 200 and produces 20 long coats , 15 short coats , and 10 mini coats . Running the south factory for an hour costs $ 400 and yields 30 long coats , 25 short coats , and 30 mini coats . To meet customer demands , a minimum of 75 long coats , 30 short coats , and 40 mini coats must be produced daily . Determine a daily production plan that minimizes the cost of meeting the company â€™s daily demands .",
     "span_posLabel": {
       "111;111": "OBJ_DIR",
       "113;113": "OBJ_NAME",

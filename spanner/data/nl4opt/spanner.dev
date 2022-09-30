@@ -1013,7 +1013,7 @@
     }
   },
   {
-    "context": "Architects ABC has a budget of one hundred thousand dollars to spend every week on their employees . They hire architects and drafters to help with their clients °Ø projects . An architect averages 3000 dollars every week and can complete 2 projects every week . A drafter does not have all the certifications and requires an architect for supervision at all times . Therefore , there must be more architects than drafters . Additionally , a drafter averages 1200 dollars every week and completes 1 project every week . How many architects and drafters should be contracted to maximize the number of projects completed every week ?",
+    "context": "Architects ABC has a budget of one hundred thousand dollars to spend every week on their employees . They hire architects and drafters to help with their clients ‚Äô projects . An architect averages 3000 dollars every week and can complete 2 projects every week . A drafter does not have all the certifications and requires an architect for supervision at all times . Therefore , there must be more architects than drafters . Additionally , a drafter averages 1200 dollars every week and completes 1 project every week . How many architects and drafters should be contracted to maximize the number of projects completed every week ?",
     "span_posLabel": {
       "101;104": "OBJ_NAME",
       "20;20": "VAR",
@@ -1161,7 +1161,7 @@
     }
   },
   {
-    "context": "A supermarket can purchase two types of refrigerators to properly store their food , refrigerator ABC and refrigerator XYZ , and they have different specifications to consider . Refrigerator ABC is larger and can store 120 items but uses 3 kWh . Refrigerator XYZ is smaller more efficient and can store 80 items but uses 1 kWh . Due to soaring electric prices , the store is limited to at most 55 kWh but must store at least 1500 items . The store must have at least 8 refrigerator ABC °Øs and 5 refrigerator XYZ °Øs . How many of each type of refrigerator should the supermarket purchase to minimize the number of refrigerators needed ?",
+    "context": "A supermarket can purchase two types of refrigerators to properly store their food , refrigerator ABC and refrigerator XYZ , and they have different specifications to consider . Refrigerator ABC is larger and can store 120 items but uses 3 kWh . Refrigerator XYZ is smaller more efficient and can store 80 items but uses 1 kWh . Due to soaring electric prices , the store is limited to at most 55 kWh but must store at least 1500 items . The store must have at least 8 refrigerator ABC ‚Äôs and 5 refrigerator XYZ ‚Äôs . How many of each type of refrigerator should the supermarket purchase to minimize the number of refrigerators needed ?",
     "span_posLabel": {
       "109;109": "OBJ_DIR",
       "111;113": "OBJ_NAME",
@@ -1382,7 +1382,7 @@
     }
   },
   {
-    "context": "A hospital gives pupil dilation drops using two types of dilation drops , fast - acting eye drops and slow - acting eye drops . The fast - acting eye drops take 5 minutes per patient to adjust the patient °Øs pupils while the slow - acting eye drops take 25 minutes per patient . Since the fast - acting eye drops are more expensive , at least twice as many patients must be dilated using the slow - acting eye drops than the fast - acting eye drops . However , at least 25 patients must be dilated with the fast - acting eye drops . If the clinic is open for 15000 minutes , maximize the number of patients that can be dilated .",
+    "context": "A hospital gives pupil dilation drops using two types of dilation drops , fast - acting eye drops and slow - acting eye drops . The fast - acting eye drops take 5 minutes per patient to adjust the patient ‚Äôs pupils while the slow - acting eye drops take 25 minutes per patient . Since the fast - acting eye drops are more expensive , at least twice as many patients must be dilated using the slow - acting eye drops than the fast - acting eye drops . However , at least 25 patients must be dilated with the fast - acting eye drops . If the clinic is open for 15000 minutes , maximize the number of patients that can be dilated .",
     "span_posLabel": {
       "101;105": "VAR",
       "111;112": "CONST_DIR",
@@ -1463,7 +1463,7 @@
     }
   },
   {
-    "context": "An MOA checks a patient °Øs eye pressure one - by - one either by using a tonometer or a °∞ puff of air °± test . The tonometer test takes 0.05 hours to make a reading while the °± puff of air °± test takes 0.02 hours to make a reading . Since the tonometer is more standard , the number of tonometer tests must be larger than the number of °∞ puff of air °± tests . Since a lot of these patients are low risk here for a check - up , at least 30 patients should have their eye pressure checked using the °∞ puff of air °± test . If the office is open for 8 hours , maximize the number of patients whose temperature can be taken ?",
+    "context": "An MOA checks a patient ‚Äôs eye pressure one - by - one either by using a tonometer or a ‚Äú puff of air ‚Äù test . The tonometer test takes 0.05 hours to make a reading while the ‚Äù puff of air ‚Äù test takes 0.02 hours to make a reading . Since the tonometer is more standard , the number of tonometer tests must be larger than the number of ‚Äú puff of air ‚Äù tests . Since a lot of these patients are low risk here for a check - up , at least 30 patients should have their eye pressure checked using the ‚Äú puff of air ‚Äù test . If the office is open for 8 hours , maximize the number of patients whose temperature can be taken ?",
     "span_posLabel": {
       "107;112": "VAR",
       "118;119": "CONST_DIR",
@@ -1954,7 +1954,7 @@
     }
   },
   {
-    "context": "A logging company ships their lumber to a nearby country using logging trucks and by lumber carrier vessels . Each logging truck costs the logging company $ 250 for every trip and moves 1000 lbs of lumber . A lumber carrier vessel costs $ 1000 every trip and moves 6000 lbs of lumber . Due to limited waters and difficulties in scheduling the trips for lumber carrier vessels , the company °Øs management asks that the number of logging trucks must exceed the number of lumber carrier vessels . The logging company must transport at least 300000 lbs of lumber to the nearby country . How many of each type of transportation should the company schedule to move their lumber to minimize the total cost ?",
+    "context": "A logging company ships their lumber to a nearby country using logging trucks and by lumber carrier vessels . Each logging truck costs the logging company $ 250 for every trip and moves 1000 lbs of lumber . A lumber carrier vessel costs $ 1000 every trip and moves 6000 lbs of lumber . Due to limited waters and difficulties in scheduling the trips for lumber carrier vessels , the company ‚Äôs management asks that the number of logging trucks must exceed the number of lumber carrier vessels . The logging company must transport at least 300000 lbs of lumber to the nearby country . How many of each type of transportation should the company schedule to move their lumber to minimize the total cost ?",
     "span_posLabel": {
       "11;12": "VAR",
       "121;121": "OBJ_DIR",
@@ -2159,7 +2159,7 @@
     }
   },
   {
-    "context": "A garbage collection company uses two types of vehicles , truck A and truck B. Truck A requires 3 workers while truck B requires 4 workers . Truck A can collect 40 units of garbage and truck B can collect 50 units of garbage . The garbage collection company has employed 150 workers . The company must use more truck A models than truck B models . Additionally , there must be at least 5 truck A °Øs and 8 truck B °Øs . How many of each type of vehicles should the company use to maximize the total amount of garbage that can be collected ?",
+    "context": "A garbage collection company uses two types of vehicles , truck A and truck B. Truck A requires 3 workers while truck B requires 4 workers . Truck A can collect 40 units of garbage and truck B can collect 50 units of garbage . The garbage collection company has employed 150 workers . The company must use more truck A models than truck B models . Additionally , there must be at least 5 truck A ‚Äôs and 8 truck B ‚Äôs . How many of each type of vehicles should the company use to maximize the total amount of garbage that can be collected ?",
     "span_posLabel": {
       "10;11": "VAR",
       "13;14": "VAR",
@@ -2305,7 +2305,7 @@
     }
   },
   {
-    "context": "A milk company is delivering milk to their local families °Ø homes directly either through bikes or by car . A worker on a bike can deliver 12 orders of milk and takes 40 minutes per trip . A worker on a car can deliver 50 orders of milk and takes 30 minutes per trip . The milk company needs to deliver at least 850 orders of milk . Additionally , at least 70 % of delivery trips must be by bike to reduce the pollution . How many of each type of delivery trips must be scheduled to minimize the minutes per trip ?",
+    "context": "A milk company is delivering milk to their local families ‚Äô homes directly either through bikes or by car . A worker on a bike can deliver 12 orders of milk and takes 40 minutes per trip . A worker on a car can deliver 50 orders of milk and takes 30 minutes per trip . The milk company needs to deliver at least 850 orders of milk . Additionally , at least 70 % of delivery trips must be by bike to reduce the pollution . How many of each type of delivery trips must be scheduled to minimize the minutes per trip ?",
     "span_posLabel": {
       "100;101": "OBJ_NAME",
       "15;15": "VAR",
@@ -2454,7 +2454,7 @@
     }
   },
   {
-    "context": "A city °Øs dispatching service needs to send out firefighting units for an upcoming extremely dry period . Firefighting units can either send units of firefighters or volunteer fire patrols . Firemen can put out 1000 sq ft of fire per trip and takes 10 minutes . Volunteer fire patrols can put out 800 sq ft of fire per trip and takes 12 minutes . There is a dry period of at least 8000 minutes that has to be covered and at least 10 % of all units must be volunteer fire patrols due to shortages in budget . In addition , there can be at most 30 units dispatched because the city has limited fire trucks . How should the dispatcher allocate resources to each type of firefighting units to maximize the total sq ft that can be put out ?",
+    "context": "A city ‚Äôs dispatching service needs to send out firefighting units for an upcoming extremely dry period . Firefighting units can either send units of firefighters or volunteer fire patrols . Firemen can put out 1000 sq ft of fire per trip and takes 10 minutes . Volunteer fire patrols can put out 800 sq ft of fire per trip and takes 12 minutes . There is a dry period of at least 8000 minutes that has to be covered and at least 10 % of all units must be volunteer fire patrols due to shortages in budget . In addition , there can be at most 30 units dispatched because the city has limited fire trucks . How should the dispatcher allocate resources to each type of firefighting units to maximize the total sq ft that can be put out ?",
     "span_posLabel": {
       "105;106": "CONST_DIR",
       "107;107": "LIMIT",
